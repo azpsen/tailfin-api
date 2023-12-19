@@ -1,5 +1,5 @@
 import bcrypt
-from flask import jsonify
+from flask import jsonify, current_app
 from mongoengine import DoesNotExist
 
 from database.models import User, AuthLevel
@@ -28,6 +28,7 @@ def update_profile(user_id, username=None, password=None, auth_level=None):
         hashed_password = bcrypt.hashpw(password.encode('UTF-8'), bcrypt.gensalt())
     if auth_level:
         if AuthLevel(user.level) < AuthLevel.ADMIN:
+            current_app.logger.warning("Unauthorized attempt by %s to change auth level", user.username)
             return jsonify({"msg": "Unauthorized attempt to change auth level"}), 403
 
     if username:
