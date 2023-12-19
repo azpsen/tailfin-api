@@ -8,11 +8,29 @@ class AuthLevel(Enum):
     USER = 1
     ADMIN = 2
 
+    def __lt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value < other.value
+        return NotImplemented
+
+    def __gt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value > other.value
+        return NotImplemented
+
+    def __eq__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value == other.value
+        return NotImplemented
+
 
 class User(Document):
     username = StringField(required=True, unique=True)
     password = StringField(required=True)
-    level = EnumField(AuthLevel, default=AuthLevel.USER)
+
+    # EnumField validation is currently broken, replace workaround if MongoEngine is updated to fix it
+    level = IntField(choices=[l.value for l in AuthLevel], default=1)
+    # level = EnumField(AuthLevel, default=AuthLevel.USER)
 
 
 class Flight(Document):
