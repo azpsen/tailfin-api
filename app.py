@@ -1,4 +1,4 @@
-import json
+import json, os, sys
 from datetime import timedelta, datetime, timezone
 
 import bcrypt
@@ -10,8 +10,14 @@ from flask_jwt_extended import create_access_token, get_jwt , get_jwt_identity, 
 
 api = Flask(__name__)
 
-api.config["JWT_SECRET_KEY"] = "please-remember-to-change-me"
-api.config["JWT_ACCESS_TOKEN_EXPORES"] = timedelta(hours=1)
+try:
+    api.config["JWT_SECRET_KEY"] = os.environ["TAILFIN_DB_KEY"]
+except KeyError:
+    api.logger.error("Please set 'TAILFIN_DB_KEY' environment variable")
+    exit(1)
+
+print(os.environ.get("TAILFIN_DB_KEY"))
+api.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
 jwt = JWTManager(api)
 
 
@@ -49,7 +55,6 @@ def add_user():
 
     try:
         existing_user = User.objects.get(username=username)
-        print(existing_user.to_json())
         return jsonify({"msg": "Username already exists"})
     except DoesNotExist:
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
@@ -147,7 +152,22 @@ def delete_flight(index):
 
 if __name__ == '__main__':
     if User.objects(level=AuthLevel.ADMIN).count() == 0:
-        hashed_password = bcrypt.hashpw("admin".encode('utf-8'), bcrypt.gensalt())
-        User(username="admin", password=hashed_password, level=AuthLevel.ADMIN).save()
+        api.logger.info("No admin users exist. Creating default admin user...")
+        try:
+            admin_username = os.environ["TAILFIN_ADMIN_USERNAME"]
+            api.logger.info("Setting admin username to 'TAILFIN_ADMIN_USERNAME': %s", admin_username)
+        except KeyError:
+            admin_username = "admin"
+            api.logger.info("'TAILFIN_ADMIN_USERNAME' not set, using default username 'admin'")
+        try:
+            admin_password = os.environ["TAILFIN_ADMIN_PASSWORD"]
+            api.logger.info("Setting admin password to 'TAILFIN_ADMIN_PASSWORD'")
+        except KeyError:
+            admin_password = "admin"
+            api.logger.warning("'TAILFIN_ADMIN_PASSWORD' not set, using default password 'admin'\n"
+                               "Change this as soon as possible")
+        hashed_password = bcrypt.hashpw(admin_password.encode('utf-8'), bcrypt.gensalt())
+        User(username=admin_username, password=hashed_password, level=AuthLevel.ADMIN).save()
+        api.logger.info("Default admin user created with username %s", User.objects.get(level=AuthLevel.ADMIN).username)
 
     api.run()
