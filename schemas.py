@@ -1,11 +1,14 @@
 import datetime
 from enum import Enum
+from typing import Annotated
 
-from pydantic import BaseModel
+from pydantic import BaseModel, BeforeValidator
+
+ObjectId = Annotated[str, BeforeValidator(str)]
 
 
 class FlightModel(BaseModel):
-    user: str
+    user: ObjectId
 
     date: datetime.date
     aircraft: str = ""
@@ -75,7 +78,38 @@ class AuthLevel(Enum):
         return NotImplemented
 
 
-class UserModel(BaseModel):
+class LoginUserSchema(BaseModel):
     username: str
     password: str
+
+
+class CreateUserSchema(BaseModel):
+    username: str
+    password: str
+    level: AuthLevel = AuthLevel.USER
+
+
+class UpdateUserSchema(BaseModel):
+    username: str | None = None
+    password: str | None = None
     level: AuthLevel | None = None
+
+
+class GetUserSchema(BaseModel):
+    id: str
+    username: str
+    level: AuthLevel = AuthLevel.USER
+
+
+class GetSystemUserSchema(GetUserSchema):
+    password: str
+
+
+class TokenSchema(BaseModel):
+    access_token: str
+    refresh_token: str
+
+
+class TokenPayload(BaseModel):
+    sub: str = None
+    exp: int = None

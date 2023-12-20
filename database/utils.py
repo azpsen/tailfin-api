@@ -8,11 +8,13 @@ from fastapi import HTTPException
 from mongoengine import DoesNotExist, Q
 
 from database.models import User, AuthLevel, Flight
+from schemas import GetUserSchema
 
 logger = logging.getLogger("utils")
 
 
-def update_profile(user_id: str, username: str = None, password: str = None, auth_level: AuthLevel = None):
+async def edit_profile(user_id: str, username: str = None, password: str = None,
+                       auth_level: AuthLevel = None) -> GetUserSchema:
     """
     Update the profile of the given user
 
@@ -25,24 +27,26 @@ def update_profile(user_id: str, username: str = None, password: str = None, aut
     try:
         user = User.objects.get(id=user_id)
     except DoesNotExist:
-        return {"msg": "user not found"}, 401
+        raise HTTPException(404, "User not found")
 
     if username:
         existing_users = User.objects(username=username).count()
         if existing_users != 0:
-            return {"msg": "Username not available"}
+            raise HTTPException(400, "Username not available")
     if auth_level:
-        if AuthLevel(user.level) < AuthLevel.ADMIN:
+        if auth_level is not AuthLevel(user.level) and AuthLevel(user.level) < AuthLevel.ADMIN:
             logger.info("Unauthorized attempt by %s to change auth level", user.username)
             raise HTTPException(403, "Unauthorized attempt to change auth level")
 
     if username:
-        user.update_one(username=username)
+        user.update(username=username)
     if password:
         hashed_password = bcrypt.hashpw(password.encode('UTF-8'), bcrypt.gensalt())
-        user.update_one(password=hashed_password)
+        user.update(password=hashed_password)
     if auth_level:
-        user.update_one(level=auth_level)
+        user.update(level=auth_level)
+
+    return GetUserSchema(id=str(user.id), username=user.username, level=user.level)
 
 
 def create_admin_user():
