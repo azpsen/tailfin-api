@@ -1,73 +1,74 @@
 import bcrypt
-from flask import Blueprint, request, jsonify, current_app
+
+import logging
+from fastapi import APIRouter, HTTPException
 
 from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, unset_jwt_cookies, jwt_required, \
     JWTManager
 from mongoengine import DoesNotExist, ValidationError
 
 from database.models import AuthLevel, User, Flight
+from models import UserModel
 from routes.utils import auth_level_required
 
-users_api = Blueprint('users_api', __name__)
+router = APIRouter()
+
+logger = logging.getLogger("users")
 
 
-@users_api.route('/users', methods=["POST"])
+@router.post('/users', status_code=201)
 @jwt_required()
 @auth_level_required(AuthLevel.ADMIN)
-def add_user():
+def add_user(body: UserModel):
     """
     Add user to database.
 
     :return: Failure message if user already exists, otherwise ID of newly created user
     """
-    body = request.get_json()
-    try:
-        username = body["username"]
-        password = body["password"]
-    except KeyError:
-        return jsonify({"msg": "Missing username or password"})
-    try:
-        auth_level = AuthLevel(body["auth_level"])
-    except KeyError:
-        auth_level = AuthLevel.USER
+
+    auth_level = body.level if body.level is not None else AuthLevel.USER
 
     try:
-        existing_user = User.objects.get(username=username)
-        current_app.logger.info("User %s already exists at auth level %s", existing_user.username, existing_user.level)
-        return jsonify({"msg": "Username already exists"})
+        existing_user = User.objects.get(username=body.username)
+        logger.debug("User %s already exists at auth level %s", existing_user.username, existing_user.level)
+        return {"msg": "Username already exists"}
+
     except DoesNotExist:
-        current_app.logger.info("Creating user %s with auth level %s", username, auth_level)
+        logger.info("Creating user %s with auth level %s", body.username, auth_level)
 
-        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-        user = User(username=username, password=hashed_password, level=auth_level.value)
+        hashed_password = bcrypt.hashpw(body.password.encode('utf-8'), bcrypt.gensalt())
+        user = User(username=body.username, password=hashed_password, level=auth_level)
+
         try:
             user.save()
         except ValidationError:
-            return jsonify({"msg": "Invalid request"})
+            raise HTTPException(400, "Invalid request")
 
-        return jsonify({"id": str(user.id)}), 201
+        return {"id": str(user.id)}
 
 
-@users_api.route('/users/<user_id>', methods=['DELETE'])
+@router.delete('/users/{user_id}', status_code=200)
 @jwt_required()
 @auth_level_required(AuthLevel.ADMIN)
-def remove_user(user_id):
+def remove_user(user_id: str):
     """
-    Delete given user from database
+    Delete given user from database along with all flights associated with said user
 
     :param user_id: ID of user to delete
-    :return: 200 if success, 401 if user does not exist
+    :return: None
     """
     try:
+        # Delete user from database
         User.objects.get(id=user_id).delete()
     except DoesNotExist:
-        current_app.logger.info("Attempt to delete nonexistent user %s by %s", user_id, get_jwt_identity())
-        return {"msg": "User does not exist"}, 401
+        logger.info("Attempt to delete nonexistent user %s by %s", user_id, get_jwt_identity())
+        raise HTTPException(401, "User does not exist")
+
+    # Delete all flights associated with the user
     Flight.objects(user=user_id).delete()
-    return '', 200
 
 
-@users_api.route('/users', methods=["GET"])
+@router.get('/users', status_code=200, response_model=list[UserModel])
 @jwt_required()
 @auth_level_required(AuthLevel.ADMIN)
 def get_users():
@@ -77,115 +78,111 @@ def get_users():
     :return: List of users in the database
     """
     users = User.objects.to_json()
-    return users, 200
+    return users
 
 
-@users_api.route('/login', methods=["POST"])
-def create_token():
+@router.post('/login', status_code=200)
+def create_token(body: UserModel):
     """
-    Log in as given user and return JWT for API access
+    Log in as given user - create associated JWT for API access
 
-    :return: 401 if username or password invalid, else JWT
+    :return: JWT for given user
     """
-    body = request.get_json()
-    try:
-        username = body["username"]
-        password = body["password"]
-    except KeyError:
-        return jsonify({"msg": "Missing username or password"})
 
     try:
-        user = User.objects.get(username=username)
+        user = User.objects.get(username=body.username)
     except DoesNotExist:
-        return jsonify({"msg": "Invalid username or password"}), 401
+        raise HTTPException(401, "Invalid username or password")
     else:
-        if bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
-            access_token = create_access_token(identity=username)
-            current_app.logger.info("%s successfully logged in", username)
-            response = {"access_token": access_token}
-            return jsonify(response), 200
-        current_app.logger.info("Failed login attempt from %s", request.remote_addr)
-        return jsonify({"msg": "Invalid username or password"}), 401
+        if bcrypt.checkpw(body.password.encode('utf-8'), user.password.encode('utf-8')):
+            access_token = create_access_token(identity=body.username)
+            logger.info("%s successfully logged in", body.username)
+            return {"access_token": access_token}
+
+        logger.info("Failed login attempt for user %s", body.username)
+        raise HTTPException(401, "Invalid username or password")
 
 
-@users_api.route('/logout', methods=["POST"])
+@router.post('/logout', status_code=200)
 def logout():
     """
     Log out given user. Note that JWTs cannot be natively revoked so this must also be handled by the frontend
 
     :return: Message with JWT removed from headers
     """
-    response = jsonify({"msg": "logout successful"})
-    unset_jwt_cookies(response)
+    response = {"msg": "logout successful"}
+    # unset_jwt_cookies(response)
     return response
 
 
-@users_api.route('/profile/<user_id>', methods=["GET"])
+@router.get('/profile/{user_id}', status_code=200)
 @jwt_required()
 @auth_level_required(AuthLevel.ADMIN)
-def get_user_profile(user_id):
+def get_user_profile(user_id: str):
     """
     Get profile of the given user
 
     :param user_id: ID of the requested user
-    :return: 401 is user does not exist, else username and auth level
+    :return: Username and auth level of the requested user
     """
     try:
         user = User.objects.get(id=user_id)
     except DoesNotExist:
-        current_app.logger.warning("User %s not found", get_jwt_identity())
-        return {"msg": "User not found"}, 401
-    return jsonify({"username": user.username, "auth_level:": str(user.level)}), 200
+        logger.warning("User %s not found", get_jwt_identity())
+        raise HTTPException(401, "User not found")
+
+    return {"username": user.username, "auth_level:": str(user.level)}
 
 
-@users_api.route('/profile/<user_id>', methods=["PUT"])
+@router.put('/profile/{user_id}', status_code=200)
 @jwt_required()
 @auth_level_required(AuthLevel.ADMIN)
-def update_user_profile(user_id):
+def update_user_profile(user_id: str, body: UserModel):
     """
     Update the profile of the given user
     :param user_id: ID of the user to update
+    :param body: New user information to insert
     :return: Error messages if request is invalid, else 200
     """
     try:
         user = User.objects.get(id=user_id)
     except DoesNotExist:
-        current_app.logger.warning("User %s not found", get_jwt_identity())
-        return jsonify({"msg": "User not found"}), 401
+        logger.warning("User %s not found", get_jwt_identity())
+        raise HTTPException(401, "User not found")
 
-    body = request.get_json()
-    return update_profile(user.id, body["username"], body["password"], body["auth_level"])
+    return update_profile(user.id, body.username, body.password, body.level)
 
 
-@users_api.route('/profile', methods=["GET"])
+@router.get('/profile', status_code=200)
 @jwt_required()
 def get_profile():
     """
     Return basic user information for the currently logged-in user
 
-    :return: 401 if user not found, else username and auth level
+    :return: Username and auth level of current user
     """
     try:
         user = User.objects.get(username=get_jwt_identity())
     except DoesNotExist:
-        current_app.logger.warning("User %s not found", get_jwt_identity())
-        return jsonify({"msg": "User not found"}), 401
-    return jsonify({"username": user.username, "auth_level:": str(user.level)}), 200
+        logger.warning("User %s not found", get_jwt_identity())
+        raise HTTPException(401, "User not found")
+
+    return {"username": user.username, "auth_level:": str(user.level)}
 
 
-@users_api.route('/profile', methods=["PUT"])
+@router.put('/profile')
 @jwt_required()
-def update_profile():
+def update_profile(body: UserModel):
     """
     Update the profile of the currently logged-in user
 
-    :return: Error messages if request is invalid, else 200
+    :param body: New information to insert
+    :return: None
     """
     try:
         user = User.objects.get(username=get_jwt_identity())
     except DoesNotExist:
-        current_app.logger.warning("User %s not found", get_jwt_identity())
-        return {"msg": "user not found"}, 401
-    body = request.get_json()
+        logger.warning("User %s not found", get_jwt_identity())
+        raise HTTPException(401, "User not found")
 
     return update_profile(user.id, body["username"], body["password"], body["auth_level"])

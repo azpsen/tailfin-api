@@ -1,15 +1,23 @@
-from flask import Blueprint, current_app, request, jsonify
+import logging
+
+from fastapi import APIRouter, HTTPException
+
+from models import FlightModel
+
 from mongoengine import DoesNotExist, ValidationError
 
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from database.models import User, Flight, AuthLevel
+from database.utils import get_flight_list
 from routes.utils import auth_level_required
 
-flights_api = Blueprint('flights_api', __name__)
+router = APIRouter()
+
+logger = logging.getLogger("flights")
 
 
-@flights_api.route('/flights', methods=['GET'])
+@router.get('/flights')
 @jwt_required()
 def get_flights():
     """
@@ -20,13 +28,14 @@ def get_flights():
     try:
         user = User.objects.get(username=get_jwt_identity())
     except DoesNotExist:
-        current_app.logger.warning("User %s not found", get_jwt_identity())
+        logger.warning("User %s not found", get_jwt_identity())
         return {"msg": "user not found"}, 401
-    flights = Flight.objects(user=user.id).to_json()
+
+    flights = get_flight_list(filters=[[{"field": "user", "operator": "eq", "value": user.id}]]).to_json()
     return flights, 200
 
 
-@flights_api.route('/flights/all', methods=['GET'])
+@router.get('/flights/all')
 @jwt_required()
 @auth_level_required(AuthLevel.ADMIN)
 def get_all_flights():
@@ -35,13 +44,14 @@ def get_all_flights():
 
     :return: List of flights
     """
-    flights = Flight.objects.to_json()
+    logger.debug("Get all flights - user: %s", get_jwt_identity())
+    flights = get_flight_list().to_json()
     return flights, 200
 
 
-@flights_api.route('/flights/<flight_id>', methods=['GET'])
+@router.get('/flights/{flight_id}', response_model=FlightModel)
 @jwt_required()
-def get_flight(flight_id):
+def get_flight(flight_id: str):
     """
     Get all details of a given flight
 
@@ -51,19 +61,20 @@ def get_flight(flight_id):
     try:
         user = User.objects.get(username=get_jwt_identity())
     except DoesNotExist:
-        current_app.logger.warning("User %s not found", get_jwt_identity())
-        return {"msg": "user not found"}, 401
+        logger.warning("User %s not found", get_jwt_identity())
+        raise HTTPException(401, "User not found")
 
     flight = Flight.objects(id=flight_id).to_json()
     if flight.user != user.id and AuthLevel(user.level) != AuthLevel.ADMIN:
-        current_app.logger.warning("Attempted access to unauthorized flight by %s", user.username)
-        return {"msg": "Unauthorized access"}, 403
-    return flight, 200
+        logger.info("Attempted access to unauthorized flight by %s", user.username)
+        raise HTTPException(403, "Unauthorized access")
+
+    return flight
 
 
-@flights_api.route('/flights', methods=['POST'])
+@router.post('/flights')
 @jwt_required()
-def add_flight():
+def add_flight(flight_body: FlightModel):
     """
     Add a flight logbook entry
 
@@ -72,64 +83,64 @@ def add_flight():
     try:
         user = User.objects.get(username=get_jwt_identity())
     except DoesNotExist:
-        current_app.logger.warning("User %s not found", get_jwt_identity())
-        return {"msg": "user not found"}, 401
+        logger.warning("User %s not found", get_jwt_identity())
+        raise HTTPException(401, "User not found")
 
-    body = request.get_json()
     try:
-        flight = Flight(user=user, **body).save()
-    except ValidationError:
-        return jsonify({"msg": "Invalid request"})
-    id = flight.id
-    return jsonify({'id': str(id)}), 201
+        flight = Flight(user=user.id, **flight_body.model_dump()).save()
+    except ValidationError as e:
+        logger.info("Invalid flight body: %s", e)
+        raise HTTPException(400, "Invalid request")
+
+    return {"id": flight.id}
 
 
-@flights_api.route('/flights/<flight_id>', methods=['PUT'])
+@router.put('/flights/{flight_id}', status_code=201, response_model=FlightModel)
 @jwt_required()
-def update_flight(flight_id):
+def update_flight(flight_id: str, flight_body: FlightModel):
     """
     Update the given flight with new information
 
     :param flight_id: ID of flight to update
-    :return: Error messages if user not found or access unauthorized, else 200
+    :param flight_body: New flight information to update with
+    :return: Updated flight
     """
     try:
         user = User.objects.get(username=get_jwt_identity())
     except DoesNotExist:
-        current_app.logger.warning("User %s not found", get_jwt_identity())
-        return {"msg": "user not found"}, 401
+        logger.warning("User %s not found", get_jwt_identity())
+        raise HTTPException(status_code=401, detail="user not found")
 
     flight = Flight.objects(id=flight_id)
 
     if flight.user != user and AuthLevel(user.level) != AuthLevel.ADMIN:
-        current_app.logger.warning("Attempted access to unauthorized flight by %s", user.username)
-        return {"msg": "Unauthorized access"}, 403
+        logger.info("Attempted access to unauthorized flight by %s", user.username)
+        raise HTTPException(403, "Unauthorized access")
 
-    body = request.get_json()
-    flight.update(**body)
+    flight.update(**flight_body.model_dump())
 
-    return '', 200
+    return flight_body
 
 
-@flights_api.route('/flights/<flight_id>', methods=['DELETE'])
-def delete_flight(flight_id):
+@router.delete('/flights/{flight_id}', status_code=200)
+def delete_flight(flight_id: str):
     """
     Delete the given flight
 
     :param flight_id: ID of flight to delete
-    :return: Error messages if user not found or access unauthorized, else 200
+    :return: 200
     """
     try:
         user = User.objects.get(username=get_jwt_identity())
     except DoesNotExist:
-        current_app.logger.warning("User %s not found", get_jwt_identity())
-        return {"msg": "user not found"}, 401
+        logger.warning("User %s not found", get_jwt_identity())
+        raise HTTPException(401, "user not found")
 
     flight = Flight.objects(id=flight_id)
 
     if flight.user != user and AuthLevel(user.level) != AuthLevel.ADMIN:
-        current_app.logger.warning("Attempted access to unauthorized flight by %s", user.username)
-        return {"msg": "Unauthorized access"}, 403
+        logger.info("Attempted access to unauthorized flight by %s", user.username)
+        raise HTTPException(403, "Unauthorized access")
 
     flight.delete()
 
