@@ -1,25 +1,19 @@
-from typing import Annotated
-
 import logging
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import ValidationError
 
-from mongoengine import DoesNotExist, ValidationError
-
-from app.deps import get_current_user, admin_required, reusable_oath, get_current_user_token
-from app.config import Settings, get_settings
-from database.models import AuthLevel, User, Flight, TokenBlacklist
-from schemas import CreateUserSchema, TokenSchema, GetSystemUserSchema, GetUserSchema, UpdateUserSchema
-from utils import get_hashed_password, verify_password, create_access_token, create_refresh_token
-from database.utils import edit_profile
+from app.deps import get_current_user, admin_required
+from database import users as db
+from schemas.user import AuthLevel, UserCreateSchema, UserDisplaySchema, UserUpdateSchema
+from routes.utils import get_hashed_password
 
 router = APIRouter()
 
-logger = logging.getLogger("users")
+logger = logging.getLogger("api")
 
 
-@router.post('/users', summary="Add user to database", status_code=201, dependencies=[Depends(admin_required)])
-async def add_user(body: CreateUserSchema) -> dict:
+@router.post('/', summary="Add user to database", status_code=201, dependencies=[Depends(admin_required)])
+async def add_user(body: UserCreateSchema) -> dict:
     """
     Add user to database.
 
@@ -28,26 +22,24 @@ async def add_user(body: CreateUserSchema) -> dict:
 
     auth_level = body.level if body.level is not None else AuthLevel.USER
 
-    try:
-        existing_user = User.objects.get(username=body.username)
+    existing_user = await db.get_user_info(body.username)
+    if existing_user is not None:
         logger.info("User %s already exists at auth level %s", existing_user.username, existing_user.level)
         raise HTTPException(400, "Username already exists")
 
-    except DoesNotExist:
-        logger.info("Creating user %s with auth level %s", body.username, auth_level)
+    logger.info("Creating user %s with auth level %s", body.username, auth_level)
 
-        hashed_password = get_hashed_password(body.password)
-        user = User(username=body.username, password=hashed_password, level=auth_level.value)
+    hashed_password = get_hashed_password(body.password)
+    user = UserCreateSchema(username=body.username, password=hashed_password, level=auth_level.value)
 
-        try:
-            user.save()
-        except ValidationError:
-            raise HTTPException(400, "Invalid request")
+    added_user = await db.add_user(user)
+    if added_user is None:
+        raise HTTPException(500, "Failed to add user")
 
-        return {"id": str(user.id)}
+    return {"id": str(added_user)}
 
 
-@router.delete('/users/{user_id}', summary="Delete given user and all associated flights", status_code=200,
+@router.delete('/{user_id}', summary="Delete given user and all associated flights", status_code=200,
                dependencies=[Depends(admin_required)])
 async def remove_user(user_id: str) -> None:
     """
@@ -56,79 +48,34 @@ async def remove_user(user_id: str) -> None:
     :param user_id: ID of user to delete
     :return: None
     """
-    try:
-        # Delete user from database
-        User.objects.get(id=user_id).delete()
-    except DoesNotExist:
+    # Delete user from database
+    deleted = await db.delete_user(user_id)
+
+    if not deleted:
         logger.info("Attempt to delete nonexistent user %s", user_id)
         raise HTTPException(401, "User does not exist")
-    except ValidationError:
-        logger.debug("Invalid user delete request")
-        raise HTTPException(400, "Invalid user")
+    # except ValidationError:
+    #     logger.debug("Invalid user delete request")
+    #     raise HTTPException(400, "Invalid user")
 
-    # Delete all flights associated with the user
-    Flight.objects(user=user_id).delete()
+    # Delete all flights associated with the user TODO
+    # Flight.objects(user=user_id).delete()
 
 
-@router.get('/users', summary="Get a list of all users", status_code=200, response_model=list[GetUserSchema],
+@router.get('/', summary="Get a list of all users", status_code=200, response_model=list[UserDisplaySchema],
             dependencies=[Depends(admin_required)])
-async def get_users() -> list[GetUserSchema]:
+async def get_users() -> list[UserDisplaySchema]:
     """
     Get a list of all users
 
     :return: List of users in the database
     """
-    users = User.objects.all()
-    return [GetUserSchema(id=str(u.id), username=u.username, level=u.level) for u in users]
+    users = await db.retrieve_users()
+    return users
 
 
-@router.post('/login', summary="Create access and refresh tokens for user", status_code=200, response_model=TokenSchema)
-async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-                settings: Annotated[Settings, Depends(get_settings)]) -> TokenSchema:
-    """
-    Log in as given user - create associated JWT for API access
-
-    :return: JWT for given user
-    """
-
-    try:
-        user = User.objects.get(username=form_data.username)
-        hashed_pass = user.password
-        if not verify_password(form_data.password, hashed_pass):
-            raise HTTPException(401, "Invalid username or password")
-        return TokenSchema(
-            access_token=create_access_token(settings, str(user.id)),
-            refresh_token=create_refresh_token(settings, str(user.id))
-        )
-    except DoesNotExist:
-        raise HTTPException(401, "Invalid username or password")
-
-
-@router.post('/logout', summary="Invalidate current user's token", status_code=200)
-async def logout(user_token: (GetSystemUserSchema, TokenSchema) = Depends(get_current_user_token)) -> dict:
-    """
-    Log out given user by adding JWT to a blacklist database
-
-    :return: Logout message
-    """
-    user, token = user_token
-    print(token)
-    try:
-        TokenBlacklist(token=str(token)).save()
-    except ValidationError:
-        logger.debug("Failed to add token to blacklist")
-
-    return {"msg": "Logout successful"}
-
-
-# @router.post('/refresh', summary="Refresh JWT token", status_code=200)
-# async def refresh(form: OAuth2RefreshRequestForm = Depends()):
-#     if request.method == 'POST':
-#         form = await request.json()
-
-
-@router.get('/profile', status_code=200, response_model=GetUserSchema)
-async def get_profile(user: GetSystemUserSchema = Depends(get_current_user)) -> GetUserSchema:
+@router.get('/me', status_code=200, response_model=UserDisplaySchema)
+async def get_profile(user: UserDisplaySchema = Depends(get_current_user)) -> UserDisplaySchema:
     """
     Return basic user information for the currently logged-in user
 
@@ -137,26 +84,26 @@ async def get_profile(user: GetSystemUserSchema = Depends(get_current_user)) -> 
     return user
 
 
-@router.get('/profile/{user_id}', status_code=200, dependencies=[Depends(admin_required)], response_model=GetUserSchema)
-async def get_user_profile(user_id: str) -> GetUserSchema:
+@router.get('/{user_id}', status_code=200, dependencies=[Depends(admin_required)], response_model=UserDisplaySchema)
+async def get_user_profile(user_id: str) -> UserDisplaySchema:
     """
     Get profile of the given user
 
     :param user_id: ID of the requested user
     :return: Username and auth level of the requested user
     """
-    try:
-        user = User.objects.get(id=user_id)
-    except DoesNotExist:
+    user = await db.get_user_info_id(id=user_id)
+
+    if user is None:
         logger.warning("User %s not found", user_id)
         raise HTTPException(404, "User not found")
 
-    return GetUserSchema(id=str(user.id), username=user.username, level=user.level)
+    return user
 
 
-@router.put('/profile', summary="Update the profile of the currently logged-in user", response_model=GetUserSchema)
-async def update_profile(body: UpdateUserSchema,
-                         user: GetSystemUserSchema = Depends(get_current_user)) -> GetUserSchema:
+@router.put('/me', summary="Update the profile of the currently logged-in user", response_model=UserDisplaySchema)
+async def update_profile(body: UserUpdateSchema,
+                         user: UserDisplaySchema = Depends(get_current_user)) -> UserDisplaySchema:
     """
     Update the profile of the currently logged-in user
 
@@ -164,12 +111,12 @@ async def update_profile(body: UpdateUserSchema,
     :param user: Currently logged-in user
     :return: None
     """
-    return await edit_profile(user.id, body.username, body.password, body.level)
+    return await db.edit_profile(user.id, body.username, body.password, body.level)
 
 
-@router.put('/profile/{user_id}', summary="Update profile of the given user", status_code=200,
-            dependencies=[Depends(admin_required)], response_model=GetUserSchema)
-async def update_user_profile(user_id: str, body: UpdateUserSchema) -> GetUserSchema:
+@router.put('/{user_id}', summary="Update profile of the given user", status_code=200,
+            dependencies=[Depends(admin_required)], response_model=UserDisplaySchema)
+async def update_user_profile(user_id: str, body: UserUpdateSchema) -> UserDisplaySchema:
     """
     Update the profile of the given user
     :param user_id: ID of the user to update
@@ -177,4 +124,4 @@ async def update_user_profile(user_id: str, body: UpdateUserSchema) -> GetUserSc
     :return: Error messages if request is invalid, else 200
     """
 
-    return await edit_profile(user_id, body.username, body.password, body.level)
+    return await db.edit_profile(user_id, body.username, body.password, body.level)
