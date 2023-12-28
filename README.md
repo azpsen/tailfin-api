@@ -74,22 +74,29 @@ To configure Tailfin, modify the `.env` file. Some of these options should be ch
 available options are detailed below:
 
 `DB_URI`: Address of MongoDB instance. Default: localhost
+<br />
 `DB_PORT`: Port of MongoDB instance. Default: 27017
+<br />
 `DB_NAME`: Name of the database to be used by Tailfin. Default: tailfin
 
 `DB_USER`: Username for MongoDB authentication. Default: tailfin-api
+<br />
 `DB_PWD`: Password for MongoDB authentication. Default: tailfin-api-password
 
 `REFRESH_TOKEN_EXPIRE_MINUTES`: Duration in minutes to keep refresh token active before invalidating it. Default:
 10080 (7 days)
+<br />
 `ACCESS_TOKEN_EXPIRE_MINUTES`: Duration in minutes to keep access token active before invalidating it. Default: 30
 
 `JWT_ALGORITHM`: Encryption algorithm to use for access and refresh tokens. Default: HS256
+<br />
 `JWT_SECRET_KEY`: Secret key used to encrypt and decrypt access tokens. Default: please-change-me
+<br />
 `JWT_REFRESH_SECRET_KEY`: Secret key used to encrypt and decrypt refresh tokens. Default: change-me-i-beg-of-you
 
 `TAILFIN_ADMIN_USERNAME`: Username of the default admin user that is created on startup if no admin users exist.
 Default: admin
+<br />
 `TAILFIN_ADMIN_PASSWORD`: Password of the default admin user that is created on startup if no admin users exist.
 Default: change-me-now
 
