@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     tailfin_admin_username: str = "admin"
     tailfin_admin_password: str = "change-me-now"
 
+    tailfin_port: int = 8081
+
 
 @lru_cache
 def get_settings():
