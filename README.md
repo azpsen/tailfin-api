@@ -73,26 +73,27 @@ $ python app.py
 To configure Tailfin, modify the `.env` file. Some of these options should be changed before running the server. All
 available options are detailed below:
 
-```
-DB_URI: Address of MongoDB instance. Default: localhost
-DB_PORT: Port of MongoDB instance. Default: 27017
-DB_NAME: Name of the database to be used by Tailfin. Default: tailfin
+`DB_URI`: Address of MongoDB instance. Default: localhost
+`DB_PORT`: Port of MongoDB instance. Default: 27017
+`DB_NAME`: Name of the database to be used by Tailfin. Default: tailfin
 
-DB_USER: Username for MongoDB authentication. Default: tailfin-api
-DB_PWD: Password for MongoDB authentication. Default: tailfin-api-password
+`DB_USER`: Username for MongoDB authentication. Default: tailfin-api
+`DB_PWD`: Password for MongoDB authentication. Default: tailfin-api-password
 
-REFRESH_TOKEN_EXPIRE_MINUTES: Duration in minutes to keep refresh token active before invalidating it. Default: 10080 (7 days)
-ACCESS_TOKEN_EXPIRE_MINUTES: Duration in minutes to keep access token active before invalidating it. Default: 30
+`REFRESH_TOKEN_EXPIRE_MINUTES`: Duration in minutes to keep refresh token active before invalidating it. Default:
+10080 (7 days)
+`ACCESS_TOKEN_EXPIRE_MINUTES`: Duration in minutes to keep access token active before invalidating it. Default: 30
 
-JWT_ALGORITHM: Encryption algorithm to use for access and refresh tokens. Default: HS256
-JWT_SECRET_KEY: Secret key used to encrypt and decrypt access tokens. Default: please-change-me
-JWT_REFRESH_SECRET_KEY: Secret key used to encrypt and decrypt refresh tokens. Default: change-me-i-beg-of-you
+`JWT_ALGORITHM`: Encryption algorithm to use for access and refresh tokens. Default: HS256
+`JWT_SECRET_KEY`: Secret key used to encrypt and decrypt access tokens. Default: please-change-me
+`JWT_REFRESH_SECRET_KEY`: Secret key used to encrypt and decrypt refresh tokens. Default: change-me-i-beg-of-you
 
-TAILFIN_ADMIN_USERNAME: Username of the default admin user that is created on startup if no admin users exist. Default: admin
-TAILFIN_ADMIN_PASSWORD: Password of the default admin user that is created on startup if no admin users exist. Default: change-me-now
+`TAILFIN_ADMIN_USERNAME`: Username of the default admin user that is created on startup if no admin users exist.
+Default: admin
+`TAILFIN_ADMIN_PASSWORD`: Password of the default admin user that is created on startup if no admin users exist.
+Default: change-me-now
 
-TAILFIN_PORT: Port to run the local Tailfin API server on. Default: 8081
-```
+`TAILFIN_PORT`: Port to run the local Tailfin API server on. Default: 8081
 
 ## Usage <a name="usage"></a>
 
