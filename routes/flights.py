@@ -13,7 +13,8 @@ router = APIRouter()
 logger = logging.getLogger("flights")
 
 
-@router.get('/', summary="Get flights logged by the currently logged-in user", status_code=200)
+@router.get('/', summary="Get flights logged by the currently logged-in user", status_code=200,
+            response_model=list[FlightConciseSchema])
 async def get_flights(user: UserDisplaySchema = Depends(get_current_user)) -> list[FlightConciseSchema]:
     """
     Get a list of the flights logged by the currently logged-in user
@@ -26,7 +27,7 @@ async def get_flights(user: UserDisplaySchema = Depends(get_current_user)) -> li
 
 
 @router.get('/all', summary="Get all flights logged by all users", status_code=200,
-            dependencies=[Depends(admin_required)])
+            dependencies=[Depends(admin_required)], response_model=list[FlightConciseSchema])
 async def get_all_flights() -> list[FlightConciseSchema]:
     """
     Get a list of all flights logged by any user
@@ -39,7 +40,7 @@ async def get_all_flights() -> list[FlightConciseSchema]:
 
 @router.get('/{flight_id}', summary="Get details of a given flight", response_model=FlightDisplaySchema,
             status_code=200)
-async def get_flight(flight_id: str, user: UserDisplaySchema = Depends(get_current_user)):
+async def get_flight(flight_id: str, user: UserDisplaySchema = Depends(get_current_user)) -> FlightDisplaySchema:
     """
     Get all details of a given flight
 
@@ -56,7 +57,7 @@ async def get_flight(flight_id: str, user: UserDisplaySchema = Depends(get_curre
 
 
 @router.post('/', summary="Add a flight logbook entry", status_code=200)
-async def add_flight(flight_body: FlightCreateSchema, user: UserDisplaySchema = Depends(get_current_user)):
+async def add_flight(flight_body: FlightCreateSchema, user: UserDisplaySchema = Depends(get_current_user)) -> dict:
     """
     Add a flight logbook entry
 
@@ -89,13 +90,13 @@ async def update_flight(flight_id: str, flight_body: FlightCreateSchema,
         logger.info("Attempted access to unauthorized flight by %s", user.username)
         raise HTTPException(403, "Unauthorized access")
 
-    updated_flight = await db.update_flight(flight_body, flight_id)
+    updated_flight_id = await db.update_flight(flight_body, flight_id)
 
-    return str(updated_flight)
+    return str(updated_flight_id)
 
 
-@router.delete('/{flight_id}', summary="Delete the given flight", status_code=200)
-async def delete_flight(flight_id: str, user: UserDisplaySchema = Depends(get_current_user)):
+@router.delete('/{flight_id}', summary="Delete the given flight", status_code=200, response_model=FlightDisplaySchema)
+async def delete_flight(flight_id: str, user: UserDisplaySchema = Depends(get_current_user)) -> FlightDisplaySchema:
     """
     Delete the given flight
 

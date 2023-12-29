@@ -4,7 +4,7 @@ from bson import ObjectId
 from fastapi import HTTPException
 
 from database.utils import user_helper, create_user_helper, system_user_helper
-from .db import user_collection
+from .db import user_collection, flight_collection
 from routes.utils import get_hashed_password
 from schemas.user import UserDisplaySchema, UserCreateSchema, UserSystemSchema, AuthLevel
 
@@ -84,7 +84,7 @@ async def get_user_system_info(username: str) -> UserSystemSchema:
 
 async def delete_user(id: str) -> UserDisplaySchema:
     """
-    Delete given user from the database
+    Delete given user and all associated flights from the database
 
     :param id: ID of user to delete
     :return: Information of deleted user
@@ -95,6 +95,10 @@ async def delete_user(id: str) -> UserDisplaySchema:
         raise HTTPException(404, "User not found")
 
     await user_collection.delete_one({"_id": ObjectId(id)})
+
+    # Delete all flights associated with user
+    await flight_collection.delete_many({"user": ObjectId(id)})
+
     return UserDisplaySchema(**user_helper(user))
 
 

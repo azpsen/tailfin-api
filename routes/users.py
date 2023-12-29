@@ -41,7 +41,7 @@ async def add_user(body: UserCreateSchema) -> dict:
 
 @router.delete('/{user_id}', summary="Delete given user and all associated flights", status_code=200,
                dependencies=[Depends(admin_required)])
-async def remove_user(user_id: str) -> None:
+async def remove_user(user_id: str) -> UserDisplaySchema:
     """
     Delete given user from database along with all flights associated with said user
 
@@ -54,12 +54,8 @@ async def remove_user(user_id: str) -> None:
     if not deleted:
         logger.info("Attempt to delete nonexistent user %s", user_id)
         raise HTTPException(401, "User does not exist")
-    # except ValidationError:
-    #     logger.debug("Invalid user delete request")
-    #     raise HTTPException(400, "Invalid user")
 
-    # Delete all flights associated with the user TODO
-    # Flight.objects(user=user_id).delete()
+    return deleted
 
 
 @router.get('/', summary="Get a list of all users", status_code=200, response_model=list[UserDisplaySchema],
