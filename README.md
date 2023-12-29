@@ -15,6 +15,7 @@
 + [Getting Started](#getting_started)
 + [Configuration](#configuration)
 + [Usage](#usage)
++ [Roadmap](#roadmap)
 
 ## About <a name="about"></a>
 
@@ -105,3 +106,12 @@ Default: `change-me-now`
 ## Usage <a name="usage"></a>
 
 Once the server is running, full API documentation is available at `localhost:8081/docs`
+
+## Roadmap <a name="roadmap"></a>
+
+- [x] Multi-user authentication
+- [x] Basic flight logging CRUD endpoints
+- [ ] Implement JWT refresh tokens
+- [ ] Attach photos to log entries
+- [ ] Integrate database of airports and waypoints that can be queried to find nearest
+- [ ] GPS track recording
