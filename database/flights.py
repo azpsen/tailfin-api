@@ -10,19 +10,21 @@ from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreat
 logger = logging.getLogger("api")
 
 
-async def retrieve_flights(user: str = "") -> list[FlightConciseSchema]:
+async def retrieve_flights(user: str = "", sort: str = "date", order: int = -1) -> list[FlightConciseSchema]:
     """
     Retrieve a list of flights, optionally filtered by user
 
     :param user: User to filter flights by
+    :param sort: Parameter to sort results by
+    :param order: Sort order
     :return: List of flights
     """
     flights = []
     if user == "":
-        async for flight in flight_collection.find():
+        async for flight in flight_collection.find().sort({sort: order}):
             flights.append(FlightConciseSchema(**flight_display_helper(flight)))
     else:
-        async for flight in flight_collection.find({"user": ObjectId(user)}):
+        async for flight in flight_collection.find({"user": ObjectId(user)}).sort({sort: order}):
             flights.append(FlightConciseSchema(**flight_display_helper(flight)))
     return flights
 

@@ -15,26 +15,27 @@ logger = logging.getLogger("flights")
 
 @router.get('/', summary="Get flights logged by the currently logged-in user", status_code=200,
             response_model=list[FlightConciseSchema])
-async def get_flights(user: UserDisplaySchema = Depends(get_current_user)) -> list[FlightConciseSchema]:
+async def get_flights(user: UserDisplaySchema = Depends(get_current_user), sort: str = "date", order: int = -1) -> list[
+    FlightConciseSchema]:
     """
     Get a list of the flights logged by the currently logged-in user
 
     :return: List of flights
     """
     # l = get_flight_list(filters=[[{"field": "user", "operator": "eq", "value": user.id}]])
-    flights = await db.retrieve_flights(user.id)
+    flights = await db.retrieve_flights(user.id, sort, order)
     return flights
 
 
 @router.get('/all', summary="Get all flights logged by all users", status_code=200,
             dependencies=[Depends(admin_required)], response_model=list[FlightConciseSchema])
-async def get_all_flights() -> list[FlightConciseSchema]:
+async def get_all_flights(sort: str = "date", order: int = -1) -> list[FlightConciseSchema]:
     """
     Get a list of all flights logged by any user
 
     :return: List of flights
     """
-    flights = await db.retrieve_flights()
+    flights = await db.retrieve_flights(sort, order)
     return flights
 
 
