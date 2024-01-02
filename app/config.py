@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     tailfin_admin_username: str = "admin"
     tailfin_admin_password: str = "change-me-now"
 
+    tailfin_url: str = "0.0.0.0"
     tailfin_port: int = 8081
 
 
