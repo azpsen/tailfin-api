@@ -3,6 +3,7 @@ import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from database.utils import create_admin_user
 from routes import users, flights, auth
@@ -22,6 +23,10 @@ async def lifespan(app: FastAPI):
 
 # Initialize FastAPI
 app = FastAPI(lifespan=lifespan)
+
+# Allow CORS
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"],
+                   allow_headers=["*"])
 
 # Add subroutes
 app.include_router(users.router, tags=["Users"], prefix="/users")

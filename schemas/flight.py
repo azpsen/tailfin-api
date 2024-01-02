@@ -86,6 +86,7 @@ class FlightCreateSchema(BaseModel):
 
 
 class FlightDisplaySchema(FlightCreateSchema):
+    user: PyObjectId
     id: PyObjectId
 
 

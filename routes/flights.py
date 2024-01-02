@@ -50,7 +50,7 @@ async def get_flight(flight_id: str, user: UserDisplaySchema = Depends(get_curre
     :return: Flight details
     """
     flight = await db.retrieve_flight(flight_id)
-    if flight.user != user.id and AuthLevel(user.level) != AuthLevel.ADMIN:
+    if str(flight.user) != user.id and AuthLevel(user.level) != AuthLevel.ADMIN:
         logger.info("Attempted access to unauthorized flight by %s", user.username)
         raise HTTPException(403, "Unauthorized access")
 

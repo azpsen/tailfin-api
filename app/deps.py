@@ -9,7 +9,8 @@ from pydantic import ValidationError
 from app.config import get_settings, Settings
 from database.tokens import is_blacklisted
 from database.users import get_user_system_info, get_user_system_info_id
-from schemas.user import TokenPayload, AuthLevel, UserDisplaySchema
+
+from schemas.user import TokenPayload, AuthLevel, UserDisplaySchema, TokenSchema
 
 reusable_oath = OAuth2PasswordBearer(
     tokenUrl="/auth/login",
@@ -42,7 +43,7 @@ async def get_current_user(settings: Annotated[Settings, Depends(get_settings)],
 
 
 async def get_current_user_token(settings: Annotated[Settings, Depends(get_settings)],
-                                 token: str = Depends(reusable_oath)) -> (UserDisplaySchema, str):
+                                 token: str = Depends(reusable_oath)) -> (UserDisplaySchema, TokenSchema):
     try:
         payload = jwt.decode(
             token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
@@ -58,11 +59,11 @@ async def get_current_user_token(settings: Annotated[Settings, Depends(get_setti
     if blacklisted:
         raise HTTPException(403, "Token expired", {"WWW-Authenticate": "Bearer"})
 
-    user = await get_user_system_info(id=token_data.sub)
+    user = await get_user_system_info_id(id=token_data.sub)
     if user is None:
         raise HTTPException(404, "Could not find user")
 
-    return user
+    return user, token
 
 
 async def admin_required(user: Annotated[UserDisplaySchema, Depends(get_current_user)]):
