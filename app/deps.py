@@ -29,11 +29,11 @@ async def get_current_user(settings: Annotated[Settings, Depends(get_settings)],
         if datetime.fromtimestamp(token_data.exp) < datetime.now():
             raise HTTPException(401, "Token expired", {"WWW-Authenticate": "Bearer"})
     except (jwt.JWTError, ValidationError):
-        raise HTTPException(403, "Could not validate credentials", {"WWW-Authenticate": "Bearer"})
+        raise HTTPException(401, "Could not validate credentials", {"WWW-Authenticate": "Bearer"})
 
     blacklisted = await is_blacklisted(token)
     if blacklisted:
-        raise HTTPException(403, "Token expired", {"WWW-Authenticate": "Bearer"})
+        raise HTTPException(401, "Token expired", {"WWW-Authenticate": "Bearer"})
 
     user = await get_user_system_info_id(id=token_data.sub)
     if user is None:
@@ -53,11 +53,11 @@ async def get_current_user_token(settings: Annotated[Settings, Depends(get_setti
         if datetime.fromtimestamp(token_data.exp) < datetime.now():
             raise HTTPException(401, "Token expired", {"WWW-Authenticate": "Bearer"})
     except (jwt.JWTError, ValidationError):
-        raise HTTPException(403, "Could not validate credentials", {"WWW-Authenticate": "Bearer"})
+        raise HTTPException(401, "Could not validate credentials", {"WWW-Authenticate": "Bearer"})
 
     blacklisted = await is_blacklisted(token)
     if blacklisted:
-        raise HTTPException(403, "Token expired", {"WWW-Authenticate": "Bearer"})
+        raise HTTPException(401, "Token expired", {"WWW-Authenticate": "Bearer"})
 
     user = await get_user_system_info_id(id=token_data.sub)
     if user is None:
