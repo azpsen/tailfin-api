@@ -70,7 +70,7 @@ class FlightCreateSchema(BaseModel):
 
     time_instrument: PositiveFloat
     time_sim_instrument: PositiveFloat
-    holds_instrument: PositiveFloat
+    holds_instrument: PositiveInt
 
     dual_given: PositiveFloat
     dual_recvd: PositiveFloat
