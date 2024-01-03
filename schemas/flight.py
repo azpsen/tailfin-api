@@ -38,7 +38,7 @@ class PyObjectId(str):
 
 
 class FlightCreateSchema(BaseModel):
-    date: datetime.date
+    date: datetime.datetime
     aircraft: Optional[str] = None
     waypoint_from: Optional[str] = None
     waypoint_to: Optional[str] = None
