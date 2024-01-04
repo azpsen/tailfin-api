@@ -66,7 +66,7 @@ class FlightCreateSchema(BaseModel):
     takeoffs_day: PositiveInt
     landings_day: PositiveInt
     takeoffs_night: PositiveInt
-    landings_all: PositiveInt
+    landings_night: PositiveInt
 
     time_instrument: PositiveFloat
     time_sim_instrument: PositiveFloat
