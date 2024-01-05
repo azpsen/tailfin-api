@@ -100,9 +100,9 @@ async def add_flight(flight_body: FlightCreateSchema, user: UserDisplaySchema = 
     return {"id": str(flight)}
 
 
-@router.put('/{flight_id}', summary="Update the given flight with new information", status_code=201)
+@router.put('/{flight_id}', summary="Update the given flight with new information", status_code=200)
 async def update_flight(flight_id: str, flight_body: FlightCreateSchema,
-                        user: UserDisplaySchema = Depends(get_current_user)) -> str:
+                        user: UserDisplaySchema = Depends(get_current_user)) -> dict:
     """
     Update the given flight with new information
 
@@ -121,7 +121,7 @@ async def update_flight(flight_id: str, flight_body: FlightCreateSchema,
 
     updated_flight_id = await db.update_flight(flight_body, flight_id)
 
-    return str(updated_flight_id)
+    return {"id": str(updated_flight_id)}
 
 
 @router.delete('/{flight_id}', summary="Delete the given flight", status_code=200, response_model=FlightDisplaySchema)
