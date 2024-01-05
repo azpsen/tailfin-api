@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Dict, Union, List
 
@@ -62,7 +63,7 @@ async def get_all_flights(sort: str = "date", order: int = -1) -> list[FlightCon
     :param order: Order of sorting (asc/desc)
     :return: List of flights
     """
-    flights = await db.retrieve_flights(sort, order)
+    flights = await db.retrieve_flights(sort=sort, order=order)
     return flights
 
 
@@ -110,11 +111,11 @@ async def update_flight(flight_id: str, flight_body: FlightCreateSchema,
     :param user: Currently logged-in user
     :return: Updated flight
     """
-    flight = await get_flight(flight_id)
+    flight = await get_flight(flight_id, user)
     if flight is None:
         raise HTTPException(404, "Flight not found")
 
-    if flight.user != user and AuthLevel(user.level) != AuthLevel.ADMIN:
+    if str(flight.user) != user.id and AuthLevel(user.level) != AuthLevel.ADMIN:
         logger.info("Attempted access to unauthorized flight by %s", user.username)
         raise HTTPException(403, "Unauthorized access")
 
@@ -132,9 +133,9 @@ async def delete_flight(flight_id: str, user: UserDisplaySchema = Depends(get_cu
     :param user: Currently logged-in user
     :return: 200
     """
-    flight = await get_flight(flight_id)
+    flight = await get_flight(flight_id, user)
 
-    if flight.user != user and AuthLevel(user.level) != AuthLevel.ADMIN:
+    if str(flight.user) != user.id and AuthLevel(user.level) != AuthLevel.ADMIN:
         logger.info("Attempted access to unauthorized flight by %s", user.username)
         raise HTTPException(403, "Unauthorized access")
 
