@@ -70,7 +70,7 @@ async def update_flight(body: FlightCreateSchema, id: str) -> FlightDisplaySchem
     if flight is None:
         raise HTTPException(404, "Flight not found")
 
-    updated_flight = await flight_collection.update_one({"_id": ObjectId(id)}, {"$set": body})
+    updated_flight = await flight_collection.update_one({"_id": ObjectId(id)}, {"$set": body.model_dump()})
     return updated_flight.upserted_id
 
 
