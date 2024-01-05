@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional, Annotated, Any
+from typing import Optional, Annotated, Any, Dict, Union, List, Literal
 
 from bson import ObjectId
 from pydantic import BaseModel, Field
@@ -102,3 +102,6 @@ class FlightConciseSchema(BaseModel):
     time_total: PositiveFloat
 
     comments: Optional[str] = None
+
+
+FlightByDateSchema = Dict[int, Union[List['FlightByDateSchema'], FlightConciseSchema]]

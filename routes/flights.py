@@ -1,10 +1,11 @@
 import logging
+from typing import Dict, Union, List
 
 from fastapi import APIRouter, HTTPException, Depends
 
 from app.deps import get_current_user, admin_required
 from database import flights as db
-from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema
+from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, FlightByDateSchema
 
 from schemas.user import UserDisplaySchema, AuthLevel
 
@@ -13,18 +14,42 @@ router = APIRouter()
 logger = logging.getLogger("flights")
 
 
-@router.get('/', summary="Get flights logged by the currently logged-in user", status_code=200,
-            response_model=list[FlightConciseSchema])
+@router.get('/', summary="Get flights logged by the currently logged-in user", status_code=200)
 async def get_flights(user: UserDisplaySchema = Depends(get_current_user), sort: str = "date", order: int = -1) -> list[
     FlightConciseSchema]:
     """
     Get a list of the flights logged by the currently logged-in user
 
+    :param user: Current user
+    :param sort: Attribute to sort results by
+    :param order: Order of sorting (asc/desc)
     :return: List of flights
     """
     # l = get_flight_list(filters=[[{"field": "user", "operator": "eq", "value": user.id}]])
     flights = await db.retrieve_flights(user.id, sort, order)
     return flights
+
+
+@router.get('/by-date', summary="Get flights logged by the current user, categorized by date", status_code=200,
+            response_model=dict)
+async def get_flights_by_date(user: UserDisplaySchema = Depends(get_current_user), sort: str = "date",
+                              order: int = -1) -> dict:
+    """
+    Get a list of the flights logged by the currently logged-in user, categorized by year, month, and day
+
+    :param user: Current user
+    :param sort: Attribute to sort results by
+    :param order: Order of sorting (asc/desc)
+    :return:
+    """
+    flights = await db.retrieve_flights(user.id, sort, order)
+    flights_ordered: FlightByDateSchema = {}
+
+    for flight in flights:
+        date = flight.date
+        flights_ordered.setdefault(date.year, {}).setdefault(date.month, {}).setdefault(date.day, []).append(flight)
+
+    return flights_ordered
 
 
 @router.get('/all', summary="Get all flights logged by all users", status_code=200,
@@ -33,6 +58,8 @@ async def get_all_flights(sort: str = "date", order: int = -1) -> list[FlightCon
     """
     Get a list of all flights logged by any user
 
+    :param sort: Attribute to sort results by
+    :param order: Order of sorting (asc/desc)
     :return: List of flights
     """
     flights = await db.retrieve_flights(sort, order)
