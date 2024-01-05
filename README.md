@@ -113,5 +113,7 @@ Once the server is running, full API documentation is available at `localhost:80
 - [x] Basic flight logging CRUD endpoints
 - [ ] Implement JWT refresh tokens
 - [ ] Attach photos to log entries
+- [ ] PDF Export
+- [ ] Import from other log applications
 - [ ] Integrate database of airports and waypoints that can be queried to find nearest
 - [ ] GPS track recording
