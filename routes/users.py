@@ -3,9 +3,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import ValidationError
 
 from app.deps import get_current_user, admin_required
-from database import users as db
-from schemas.user import AuthLevel, UserCreateSchema, UserDisplaySchema, UserUpdateSchema
-from routes.utils import get_hashed_password
+from database import users as db, users
+from schemas.user import AuthLevel, UserCreateSchema, UserDisplaySchema, UserUpdateSchema, PasswordUpdateSchema
+from routes.utils import get_hashed_password, verify_password
 
 router = APIRouter()
 
@@ -101,13 +101,33 @@ async def get_user_profile(user_id: str) -> UserDisplaySchema:
 async def update_profile(body: UserUpdateSchema,
                          user: UserDisplaySchema = Depends(get_current_user)) -> UserDisplaySchema:
     """
-    Update the profile of the currently logged-in user
+    Update the profile of the currently logged-in user. Cannot update password this way
 
     :param body: New information to insert
     :param user: Currently logged-in user
+    :return: Updated user profile
+    """
+    return await db.edit_profile(user.id, username=body.username, auth_level=body.level)
+
+
+@router.put('/me/password', summary="Update the password of the currently logged-in user", status_code=200)
+async def update_password(body: PasswordUpdateSchema, user: UserDisplaySchema = Depends(get_current_user)):
+    """
+    Update the password of the currently logged-in user. Requires password confirmation
+
+    :param body: Password confirmation and new password
+    :param user: Currently logged-in user
     :return: None
     """
-    return await db.edit_profile(user.id, body.username, body.password, body.level)
+    # Get current user's password
+    user = await users.get_user_system_info(username=user.username)
+
+    # Verify password confirmation
+    if not verify_password(body.current_password, user.password):
+        raise HTTPException(403, "Invalid password")
+
+    # Update the user's password
+    await db.edit_profile(user.id, password=body.new_password)
 
 
 @router.put('/{user_id}', summary="Update profile of the given user", status_code=200,

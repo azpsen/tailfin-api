@@ -50,7 +50,7 @@ async def logout(user_token: (UserDisplaySchema, TokenSchema) = Depends(get_curr
     user, token = user_token
 
     # Blacklist token
-    blacklisted = tokens.blacklist_token(token)
+    blacklisted = await tokens.blacklist_token(token)
 
     if not blacklisted:
         logger.debug("Failed to add token to blacklist")

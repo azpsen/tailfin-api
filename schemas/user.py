@@ -66,18 +66,12 @@ class UserCreateSchema(UserBaseSchema):
 
 class UserUpdateSchema(BaseModel):
     username: Optional[str] = None
-    password: Optional[str] = None
     level: Optional[AuthLevel] = AuthLevel.USER
 
     @field_validator("username")
     @classmethod
     def _valid_username(cls, value):
         validate_username(value)
-
-    @field_validator("password")
-    @classmethod
-    def _valid_password(cls, value):
-        validate_password(value)
 
 
 class UserDisplaySchema(UserBaseSchema):
@@ -87,6 +81,16 @@ class UserDisplaySchema(UserBaseSchema):
 
 class UserSystemSchema(UserDisplaySchema):
     password: str
+
+
+class PasswordUpdateSchema(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def _valid_password(cls, value):
+        validate_password(value)
 
 
 class TokenSchema(BaseModel):
