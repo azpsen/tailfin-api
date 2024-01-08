@@ -52,6 +52,12 @@ async def retrieve_totals(user: str, start_date: datetime = None, end_date: date
             "total_night": {"$sum": "$time_night"},
             "total_pic": {"$sum": "$time_pic"},
             "total_sic": {"$sum": "$time_sic"},
+            "total_instrument": {"$sum": "$time_instrument"},
+            "total_sim": {"$sum": "$time_sim"},
+            "time_xc": {"$sum": "$time_xc"},
+            "landings_day": {"$sum": "$takoffs_day"},
+            "landings_night": {"$sum": "$takeoffs_nights"},
+
         }
         },
         {"$project": {"_id": 0}},
@@ -62,7 +68,17 @@ async def retrieve_totals(user: str, start_date: datetime = None, end_date: date
     if not result:
         raise HTTPException(404, "No flights found")
 
-    return result[0]
+    totals = result[0]
+    async for log in flight_collection.find({"user": ObjectId(user)}):
+        flight = FlightDisplaySchema(**flight_display_helper(log))
+        totals["total_xc_instr"] = totals.get("total_xc_instr", 0) + min(flight.time_xc, flight.dual_recvd)
+        totals["total_xc_solo"] = totals.get("total_xc_solo", 0) + min(flight.time_xc, flight.time_solo)
+        totals["total_xc_pic"] = totals.get("total_xc_pic", 0) + min(flight.time_xc, flight.time_pic)
+        totals["total_night_dual_recvd"] = totals.get("total_night_dual_recvd", 0) + min(flight.time_night,
+                                                                                         flight.dual_recvd)
+        totals["total_night_pic"] = totals.get("total_night_pic", 0) + min(flight.time_night, flight.time_pic)
+
+    return totals
 
 
 async def retrieve_flight(id: str) -> FlightDisplaySchema:
