@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import datetime
 from typing import Dict, Union, List
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -51,6 +52,25 @@ async def get_flights_by_date(user: UserDisplaySchema = Depends(get_current_user
         flights_ordered.setdefault(date.year, {}).setdefault(date.month, {}).setdefault(date.day, []).append(flight)
 
     return flights_ordered
+
+
+@router.get('/totals', summary="Get total statistics for the current user", status_code=200, response_model=dict)
+async def get_flight_totals(user: UserDisplaySchema = Depends(get_current_user), start_date: str = "",
+                            end_date: str = "") -> dict:
+    """
+    Get the total statistics for the currently logged-in user
+
+    :param user: Current user
+    :param start_date: Only count statistics after this date (optional)
+    :param end_date: Only count statistics before this date (optional)
+    :return: Dict of totals
+    """
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d") if start_date != "" else None
+        end = datetime.strptime(end_date, "%Y-%m-%d") if end_date != "" else None
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Date range not processable")
+    return await db.retrieve_totals(user.id, start, end)
 
 
 @router.get('/all', summary="Get all flights logged by all users", status_code=200,

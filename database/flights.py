@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from bson import ObjectId
 from fastapi import HTTPException
@@ -27,6 +28,41 @@ async def retrieve_flights(user: str = "", sort: str = "date", order: int = -1) 
         async for flight in flight_collection.find({"user": ObjectId(user)}).sort({sort: order}):
             flights.append(FlightConciseSchema(**flight_display_helper(flight)))
     return flights
+
+
+async def retrieve_totals(user: str, start_date: datetime = None, end_date: datetime = None) -> dict:
+    """
+    Retrieve total times for the given user
+    :param user:
+    :return:
+    """
+    match = {"user": ObjectId(user)}
+
+    if start_date is not None:
+        match.setdefault("date", {}).setdefault("$gte", start_date)
+    if end_date is not None:
+        match.setdefault("date", {}).setdefault("$lte", end_date)
+
+    cursor = flight_collection.aggregate([
+        {"$match": match},
+        {"$group": {
+            "_id": None,
+            "total_time": {"$sum": "$time_total"},
+            "total_solo": {"$sum": "$time_solo"},
+            "total_night": {"$sum": "$time_night"},
+            "total_pic": {"$sum": "$time_pic"},
+            "total_sic": {"$sum": "$time_sic"},
+        }
+        },
+        {"$project": {"_id": 0}},
+    ])
+
+    result = await cursor.to_list(length=None)
+
+    if not result:
+        raise HTTPException(404, "No flights found")
+
+    return result[0]
 
 
 async def retrieve_flight(id: str) -> FlightDisplaySchema:
