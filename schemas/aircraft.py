@@ -6,6 +6,37 @@ from pydantic_core.core_schema import ValidationInfo
 
 from schemas.utils import PyObjectId, PositiveFloat
 
+category_class = {
+    "Airplane": [
+        "Single-Engine Land",
+        "Multi-Engine Land",
+        "Single-Engine Sea",
+        "Multi-Engine Sea",
+    ],
+    "Rotorcraft": [
+        "Helicopter",
+        "Gyroplane",
+    ],
+    "Powered Lift": [
+        "Powered Lift",
+    ],
+    "Glider": [
+        "Glider",
+    ],
+    "Lighter-Than-Air": [
+        "Airship",
+        "Balloon",
+    ],
+    "Powered Parachute": [
+        "Powered Parachute Land",
+        "Powered Parachute Sea",
+    ],
+    "Weight-Shift Control": [
+        "Weight-Shift Control Land",
+        "Weight-Shift Control Sea",
+    ],
+}
+
 
 class AircraftCategory(Enum):
     airplane = "Airplane"

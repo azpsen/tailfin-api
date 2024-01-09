@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.deps import get_current_user, admin_required
 from database import aircraft as db
-from schemas.aircraft import AircraftDisplaySchema, AircraftCreateSchema
+from schemas.aircraft import AircraftDisplaySchema, AircraftCreateSchema, category_class
 from schemas.user import UserDisplaySchema, AuthLevel
 
 router = APIRouter()
@@ -34,6 +34,29 @@ async def get_all_aircraft() -> list[AircraftDisplaySchema]:
     """
     aircraft = await db.retrieve_aircraft()
     return aircraft
+
+
+@router.get('/categories', summary="Get valid aircraft categories", status_code=200, response_model=dict)
+async def get_categories() -> dict:
+    """
+    Get a list of valid aircraft categories
+
+    :return: List of categories
+    """
+    return {"categories": list(category_class.keys())}
+
+
+@router.get('/class', summary="Get valid aircraft classes for the given class", status_code=200, response_model=dict)
+async def get_categories(category: str = "Airplane") -> dict:
+    """
+    Get a list of valid aircraft classes for the given class
+
+    :return: List of classes
+    """
+    if category not in category_class.keys():
+        raise HTTPException(404, "Category not found")
+
+    return {"classes": category_class[category]}
 
 
 @router.get('/{aircraft_id}', summary="Get details of a given aircraft", response_model=AircraftDisplaySchema,
