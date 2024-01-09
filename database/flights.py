@@ -2,11 +2,12 @@ import logging
 from datetime import datetime
 
 from bson import ObjectId
+from bson.errors import InvalidId
 from fastapi import HTTPException
 
-from database.utils import flight_display_helper, flight_add_helper
 from .db import flight_collection
-from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema
+from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, flight_display_helper, \
+    flight_add_helper
 
 logger = logging.getLogger("api")
 
@@ -104,6 +105,14 @@ async def insert_flight(body: FlightCreateSchema, id: str) -> ObjectId:
     :param id: ID of creating user
     :return: ID of inserted flight
     """
+    try:
+        aircraft = await flight_collection.find_one({"_id": ObjectId(body.aircraft)})
+    except InvalidId:
+        raise HTTPException(400, "Invalid aircraft ID")
+
+    if aircraft is None:
+        raise HTTPException(404, "Aircraft not found")
+
     flight = await flight_collection.insert_one(flight_add_helper(body.model_dump(), id))
     return flight.inserted_id
 
@@ -120,6 +129,11 @@ async def update_flight(body: FlightCreateSchema, id: str) -> FlightDisplaySchem
 
     if flight is None:
         raise HTTPException(404, "Flight not found")
+
+    aircraft = await flight_collection.find_ond({"_id": ObjectId(body.aircraft)})
+
+    if aircraft is None:
+        raise HTTPException(404, "Aircraft not found")
 
     updated_flight = await flight_collection.update_one({"_id": ObjectId(id)}, {"$set": body.model_dump()})
     if updated_flight is None:

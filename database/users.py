@@ -3,10 +3,10 @@ import logging
 from bson import ObjectId
 from fastapi import HTTPException
 
-from database.utils import user_helper, create_user_helper, system_user_helper
 from .db import user_collection, flight_collection
 from routes.utils import get_hashed_password
-from schemas.user import UserDisplaySchema, UserCreateSchema, UserSystemSchema, AuthLevel
+from schemas.user import UserDisplaySchema, UserCreateSchema, UserSystemSchema, AuthLevel, user_helper, \
+    create_user_helper, system_user_helper
 
 logger = logging.getLogger("api")
 

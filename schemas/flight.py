@@ -1,45 +1,15 @@
 import datetime
-from typing import Optional, Annotated, Any, Dict, Union, List, Literal
+from typing import Optional, Dict, Union, List
 
 from bson import ObjectId
-from pydantic import BaseModel, Field
-from pydantic_core import core_schema
+from pydantic import BaseModel
 
-PositiveInt = Annotated[int, Field(default=0, ge=0)]
-PositiveFloat = Annotated[float, Field(default=0., ge=0)]
-PositiveFloatNullable = Annotated[float, Field(ge=0)]
+from database.aircraft import retrieve_aircraft_by_id
+from schemas.utils import PositiveFloatNullable, PositiveFloat, PositiveInt, PyObjectId
 
 
-class PyObjectId(str):
-    @classmethod
-    def __get_pydantic_core_schema__(
-            cls, _source_type: Any, _handler: Any
-    ) -> core_schema.CoreSchema:
-        return core_schema.json_or_python_schema(
-            json_schema=core_schema.str_schema(),
-            python_schema=core_schema.union_schema([
-                core_schema.is_instance_schema(ObjectId),
-                core_schema.chain_schema([
-                    core_schema.str_schema(),
-                    core_schema.no_info_plain_validator_function(cls.validate),
-                ])
-            ]),
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda x: str(x)
-            ),
-        )
-
-    @classmethod
-    def validate(cls, value) -> ObjectId:
-        if not ObjectId.is_valid(value):
-            raise ValueError("Invalid ObjectId")
-
-        return ObjectId(value)
-
-
-class FlightCreateSchema(BaseModel):
+class FlightSchema(BaseModel):
     date: datetime.datetime
-    aircraft: Optional[str] = None
     waypoint_from: Optional[str] = None
     waypoint_to: Optional[str] = None
     route: Optional[str] = None
@@ -83,14 +53,20 @@ class FlightCreateSchema(BaseModel):
     comments: Optional[str] = None
 
 
-class FlightDisplaySchema(FlightCreateSchema):
+class FlightCreateSchema(FlightSchema):
+    aircraft: str
+
+
+class FlightDisplaySchema(FlightSchema):
     user: PyObjectId
     id: PyObjectId
+    aircraft: PyObjectId
 
 
 class FlightConciseSchema(BaseModel):
     user: PyObjectId
     id: PyObjectId
+    aircraft: str
 
     date: datetime.date
     aircraft: str
@@ -103,3 +79,48 @@ class FlightConciseSchema(BaseModel):
 
 
 FlightByDateSchema = Dict[int, Union[List['FlightByDateSchema'], FlightConciseSchema]]
+
+
+# HELPERS #
+
+
+def flight_display_helper(flight: dict) -> dict:
+    """
+    Convert given db response to a format usable by FlightDisplaySchema
+
+    :param flight: Database response
+    :return: Usable dict
+    """
+    flight["id"] = str(flight["_id"])
+    flight["user"] = str(flight["user"])
+    flight["aircraft"] = str(flight["aircraft"])
+
+    return flight
+
+
+async def flight_concise_helper(flight: dict) -> dict:
+    """
+    Convert given db response to a format usable by FlightConciseSchema
+
+    :param flight: Database response
+    :return: Usable dict
+    """
+    flight["id"] = str(flight["_id"])
+    flight["user"] = str(flight["user"])
+    flight["aircraft"] = (await retrieve_aircraft_by_id(str(flight["aircraft"]))).tail_no
+
+    return flight
+
+
+def flight_add_helper(flight: dict, user: str) -> dict:
+    """
+    Convert given flight schema and user string to a format that can be inserted into the db
+
+    :param flight: Flight request body
+    :param user: User that created flight
+    :return: Combined dict that can be inserted into db
+    """
+    flight["user"] = ObjectId(user)
+    flight["aircraft"] = ObjectId(flight["aircraft"])
+
+    return flight

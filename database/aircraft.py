@@ -2,8 +2,7 @@ from bson import ObjectId
 from fastapi import HTTPException
 
 from database.db import aircraft_collection
-from database.utils import aircraft_display_helper, aircraft_add_helper
-from schemas.aircraft import AircraftDisplaySchema, AircraftCreateSchema
+from schemas.aircraft import AircraftDisplaySchema, AircraftCreateSchema, aircraft_display_helper, aircraft_add_helper
 
 
 async def retrieve_aircraft(user: str = "") -> list[AircraftDisplaySchema]:

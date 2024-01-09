@@ -101,3 +101,49 @@ class TokenSchema(BaseModel):
 class TokenPayload(BaseModel):
     sub: Optional[str]
     exp: Optional[int]
+
+
+# HELPERS #
+
+
+def user_helper(user) -> dict:
+    """
+    Convert given db response into a format usable by UserDisplaySchema
+
+    :param user: Database response
+    :return: Usable dict
+    """
+    return {
+        "id": str(user["_id"]),
+        "username": user["username"],
+        "level": user["level"],
+    }
+
+
+def system_user_helper(user) -> dict:
+    """
+    Convert given db response to a format usable by UserSystemSchema
+
+    :param user: Database response
+    :return: Usable dict
+    """
+    return {
+        "id": str(user["_id"]),
+        "username": user["username"],
+        "password": user["password"],
+        "level": user["level"],
+    }
+
+
+def create_user_helper(user) -> dict:
+    """
+    Convert given db response to a format usable by UserCreateSchema
+
+    :param user: Database response
+    :return: Usable dict
+    """
+    return {
+        "username": user["username"],
+        "password": user["password"],
+        "level": user["level"].value,
+    }
