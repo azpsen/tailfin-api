@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import ValidationError
 
 from app.deps import get_current_user, admin_required
@@ -111,7 +111,8 @@ async def update_profile(body: UserUpdateSchema,
 
 
 @router.put('/me/password', summary="Update the password of the currently logged-in user", status_code=200)
-async def update_password(body: PasswordUpdateSchema, user: UserDisplaySchema = Depends(get_current_user)):
+async def update_password(body: PasswordUpdateSchema,
+                          user: UserDisplaySchema = Depends(get_current_user)):
     """
     Update the password of the currently logged-in user. Requires password confirmation
 

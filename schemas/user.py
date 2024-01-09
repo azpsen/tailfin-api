@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field, validator, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 def validate_username(value: str):
@@ -56,12 +56,12 @@ class UserCreateSchema(UserBaseSchema):
     @field_validator("username")
     @classmethod
     def _valid_username(cls, value):
-        validate_username(value)
+        return validate_username(value)
 
     @field_validator("password")
     @classmethod
     def _valid_password(cls, value):
-        validate_password(value)
+        return validate_password(value)
 
 
 class UserUpdateSchema(BaseModel):
@@ -71,7 +71,7 @@ class UserUpdateSchema(BaseModel):
     @field_validator("username")
     @classmethod
     def _valid_username(cls, value):
-        validate_username(value)
+        return validate_username(value)
 
 
 class UserDisplaySchema(UserBaseSchema):
@@ -84,13 +84,13 @@ class UserSystemSchema(UserDisplaySchema):
 
 
 class PasswordUpdateSchema(BaseModel):
-    current_password: str
-    new_password: str
+    current_password: str = ...
+    new_password: str = ...
 
     @field_validator("new_password")
     @classmethod
     def _valid_password(cls, value):
-        validate_password(value)
+        return validate_password(value)
 
 
 class TokenSchema(BaseModel):
