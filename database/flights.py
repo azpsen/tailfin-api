@@ -67,7 +67,24 @@ async def retrieve_totals(user: str, start_date: datetime = None, end_date: date
     result = await cursor.to_list(length=None)
 
     if not result:
-        raise HTTPException(404, "No flights found")
+        return {
+            "time_total": 0.0,
+            "time_solo": 0.0,
+            "time_night": 0.0,
+            "time_pic": 0.0,
+            "time_sic": 0.0,
+            "time_instrument": 0.0,
+            "time_sim": 0.0,
+            "time_xc": 0.0,
+            "landings_day": 0,
+            "landings_night": 0,
+            "xc_dual_recvd": 0.0,
+            "xc_solo": 0.0,
+            "xc_pic": 0.0,
+            "night_dual_recvd": 0.0,
+            "night_pic": 0.0
+
+        }
 
     totals = result[0]
     async for log in flight_collection.find({"user": ObjectId(user)}):

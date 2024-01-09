@@ -67,6 +67,7 @@ async def get_flight_totals(user: UserDisplaySchema = Depends(get_current_user),
         end = datetime.strptime(end_date, "%Y-%m-%d") if end_date != "" else None
     except (TypeError, ValueError):
         raise HTTPException(400, "Date range not processable")
+
     return await db.retrieve_totals(user.id, start, end)
 
 
