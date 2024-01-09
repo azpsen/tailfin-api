@@ -24,4 +24,5 @@ except Exception as e:
 # Get db collections
 user_collection = db_client["user"]
 flight_collection = db_client["flight"]
+aircraft_collection = db_client["aircraft"]
 token_collection = db_client["token_blacklist"]

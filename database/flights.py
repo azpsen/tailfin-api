@@ -88,8 +88,7 @@ async def retrieve_flight(id: str) -> FlightDisplaySchema:
     :param id: ID of flight to retrieve
     :return: Flight information
     """
-    oid = ObjectId(id)
-    flight = await flight_collection.find_one({"_id": oid})
+    flight = await flight_collection.find_one({"_id": ObjectId(id)})
 
     if flight is None:
         raise HTTPException(404, "Flight not found")

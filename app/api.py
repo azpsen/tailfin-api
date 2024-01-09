@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database.utils import create_admin_user
-from routes import users, flights, auth
+from routes import users, flights, auth, aircraft
 
 logger = logging.getLogger("api")
 
@@ -31,4 +31,5 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
 # Add subroutes
 app.include_router(users.router, tags=["Users"], prefix="/users")
 app.include_router(flights.router, tags=["Flights"], prefix="/flights")
+app.include_router(aircraft.router, tags=["Aircraft"], prefix="/aircraft")
 app.include_router(auth.router, tags=["Auth"], prefix="/auth")

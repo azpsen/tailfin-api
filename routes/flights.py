@@ -1,14 +1,12 @@
-import json
 import logging
 from datetime import datetime
-from typing import Dict, Union, List
 
 from fastapi import APIRouter, HTTPException, Depends
 
 from app.deps import get_current_user, admin_required
 from database import flights as db
-from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, FlightByDateSchema
 
+from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, FlightByDateSchema
 from schemas.user import UserDisplaySchema, AuthLevel
 
 router = APIRouter()
@@ -27,7 +25,6 @@ async def get_flights(user: UserDisplaySchema = Depends(get_current_user), sort:
     :param order: Order of sorting (asc/desc)
     :return: List of flights
     """
-    # l = get_flight_list(filters=[[{"field": "user", "operator": "eq", "value": user.id}]])
     flights = await db.retrieve_flights(user.id, sort, order)
     return flights
 
