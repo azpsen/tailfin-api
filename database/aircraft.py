@@ -23,11 +23,26 @@ async def retrieve_aircraft(user: str = "") -> list[AircraftDisplaySchema]:
     return aircraft
 
 
+async def retrieve_aircraft_by_tail(tail_no: str) -> AircraftDisplaySchema:
+    """
+    Retrieve details about the requested aircraft
+
+    :param tail_no: Tail number of desired aircraft
+    :return: Aircraft details
+    """
+    aircraft = await aircraft_collection.find_one({"tail_no": tail_no})
+
+    if aircraft is None:
+        raise HTTPException(404, "Aircraft not found")
+
+    return AircraftDisplaySchema(**aircraft_display_helper(aircraft))
+
+
 async def retrieve_aircraft_by_id(id: str) -> AircraftDisplaySchema:
     """
     Retrieve details about the requested aircraft
 
-    :param id: ID of desired aircraft
+    :param tail_no: Tail number of desired aircraft
     :return: Aircraft details
     """
     aircraft = await aircraft_collection.find_one({"_id": ObjectId(id)})

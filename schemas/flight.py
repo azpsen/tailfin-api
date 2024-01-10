@@ -4,20 +4,18 @@ from typing import Optional, Dict, Union, List
 from bson import ObjectId
 from pydantic import BaseModel
 
-from database.aircraft import retrieve_aircraft_by_id
 from schemas.utils import PositiveFloatNullable, PositiveFloat, PositiveInt, PyObjectId
 
 
-class FlightSchema(BaseModel):
+class FlightCreateSchema(BaseModel):
     date: datetime.datetime
+    aircraft: str
     waypoint_from: Optional[str] = None
     waypoint_to: Optional[str] = None
     route: Optional[str] = None
 
     hobbs_start: Optional[PositiveFloatNullable] = None
     hobbs_end: Optional[PositiveFloatNullable] = None
-    tach_start: Optional[PositiveFloatNullable] = None
-    tach_end: Optional[PositiveFloatNullable] = None
 
     time_start: Optional[datetime.datetime] = None
     time_off: Optional[datetime.datetime] = None
@@ -53,14 +51,9 @@ class FlightSchema(BaseModel):
     comments: Optional[str] = None
 
 
-class FlightCreateSchema(FlightSchema):
-    aircraft: str
-
-
-class FlightDisplaySchema(FlightSchema):
+class FlightDisplaySchema(FlightCreateSchema):
     user: PyObjectId
     id: PyObjectId
-    aircraft: PyObjectId
 
 
 class FlightConciseSchema(BaseModel):
@@ -93,7 +86,6 @@ def flight_display_helper(flight: dict) -> dict:
     """
     flight["id"] = str(flight["_id"])
     flight["user"] = str(flight["user"])
-    flight["aircraft"] = str(flight["aircraft"])
 
     return flight
 
@@ -107,7 +99,6 @@ async def flight_concise_helper(flight: dict) -> dict:
     """
     flight["id"] = str(flight["_id"])
     flight["user"] = str(flight["user"])
-    flight["aircraft"] = (await retrieve_aircraft_by_id(str(flight["aircraft"]))).tail_no
 
     return flight
 
@@ -121,6 +112,5 @@ def flight_add_helper(flight: dict, user: str) -> dict:
     :return: Combined dict that can be inserted into db
     """
     flight["user"] = ObjectId(user)
-    flight["aircraft"] = ObjectId(flight["aircraft"])
 
     return flight

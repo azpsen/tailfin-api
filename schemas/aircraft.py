@@ -86,7 +86,6 @@ class AircraftCreateSchema(BaseModel):
     aircraft_class: AircraftClass
 
     hobbs: PositiveFloat
-    tach: PositiveFloat
 
     @field_validator('aircraft_class')
     def validate_class(cls, v: str, info: ValidationInfo, **kwargs):

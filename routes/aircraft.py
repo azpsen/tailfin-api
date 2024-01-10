@@ -59,7 +59,7 @@ async def get_categories(category: str = "Airplane") -> dict:
     return {"classes": category_class[category]}
 
 
-@router.get('/{aircraft_id}', summary="Get details of a given aircraft", response_model=AircraftDisplaySchema,
+@router.get('/id/{aircraft_id}', summary="Get details of a given aircraft", response_model=AircraftDisplaySchema,
             status_code=200)
 async def get_aircraft_by_id(aircraft_id: str,
                              user: UserDisplaySchema = Depends(get_current_user)) -> AircraftDisplaySchema:
@@ -71,6 +71,27 @@ async def get_aircraft_by_id(aircraft_id: str,
     :return: Aircraft details
     """
     aircraft = await db.retrieve_aircraft_by_id(aircraft_id)
+
+    if str(aircraft.user) != user.id and AuthLevel(user.level) != AuthLevel.ADMIN:
+        logger.info("Attempted access to unauthorized aircraft by %s", user.username)
+        raise HTTPException(403, "Unauthorized access")
+
+    return aircraft
+
+
+@router.get('/tail/{tail_no}', summary="Get details of a given aircraft", response_model=AircraftDisplaySchema,
+            status_code=200)
+async def get_aircraft_by_tail(tail_no: str,
+                               user: UserDisplaySchema = Depends(get_current_user)) -> AircraftDisplaySchema:
+    """
+    Get all details of a given aircraft
+
+    :param tail_no: Tail number of requested aircraft
+    :param user: Currently logged-in user
+    :return: Aircraft details
+    """
+    aircraft = await db.retrieve_aircraft_by_tail(tail_no)
+
     if str(aircraft.user) != user.id and AuthLevel(user.level) != AuthLevel.ADMIN:
         logger.info("Attempted access to unauthorized aircraft by %s", user.username)
         raise HTTPException(403, "Unauthorized access")
@@ -89,9 +110,14 @@ async def add_aircraft(aircraft_body: AircraftCreateSchema,
     :return: Error message if request invalid, else ID of newly created aircraft
     """
 
-    aircraft = await db.insert_aircraft(aircraft_body, user.id)
+    try:
+        await db.retrieve_aircraft_by_tail(aircraft_body.tail_no)
+    except HTTPException:
+        aircraft = await db.insert_aircraft(aircraft_body, user.id)
 
-    return {"id": str(aircraft)}
+        return {"id": str(aircraft)}
+
+    raise HTTPException(400, "Aircraft with tail number " + aircraft_body.tail_no + " already exists", )
 
 
 @router.put('/{aircraft_id}', summary="Update the given aircraft with new information", status_code=200)
