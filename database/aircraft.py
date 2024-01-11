@@ -68,12 +68,13 @@ async def insert_aircraft(body: AircraftCreateSchema, id: str) -> ObjectId:
     return aircraft.inserted_id
 
 
-async def update_aircraft(body: AircraftCreateSchema, id: str) -> AircraftDisplaySchema:
+async def update_aircraft(body: AircraftCreateSchema, id: str, user: str) -> AircraftDisplaySchema:
     """
     Update given aircraft in the database
 
     :param body: Updated aircraft data
     :param id: ID of aircraft to update
+    :param user: ID of updating user
     :return: Updated aircraft
     """
     aircraft = await aircraft_collection.find_one({"_id": ObjectId(id)})
@@ -81,11 +82,17 @@ async def update_aircraft(body: AircraftCreateSchema, id: str) -> AircraftDispla
     if aircraft is None:
         raise HTTPException(404, "Aircraft not found")
 
-    updated_aircraft = await aircraft_collection.update_one({"_id": ObjectId(id)}, {"$set": body.model_dump()})
+    updated_aircraft = await aircraft_collection.update_one({"_id": ObjectId(id)},
+                                                            {"$set": aircraft_add_helper(body.model_dump(), user)})
     if updated_aircraft is None:
-        raise HTTPException(500, "Failed to update flight")
+        raise HTTPException(500, "Failed to update aircraft")
 
-    return AircraftDisplaySchema(**body.model_dump())
+    aircraft = await aircraft_collection.find_one({"_id": ObjectId(id)})
+
+    if aircraft is None:
+        raise HTTPException(500, "Failed to fetch updated aircraft")
+
+    return AircraftDisplaySchema(**aircraft_display_helper(aircraft))
 
 
 async def update_aircraft_field(field: str, value: Any, id: str) -> AircraftDisplaySchema:

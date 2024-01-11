@@ -139,7 +139,7 @@ async def update_aircraft(aircraft_id: str, aircraft_body: AircraftCreateSchema,
         logger.info("Attempted access to unauthorized aircraft by %s", user.username)
         raise HTTPException(403, "Unauthorized access")
 
-    updated_aircraft_id = await db.update_aircraft(aircraft_body, aircraft_id)
+    updated_aircraft_id = await db.update_aircraft(aircraft_body, aircraft_id, user.id)
 
     return {"id": str(updated_aircraft_id)}
 
