@@ -123,10 +123,10 @@ async def retrieve_totals(user: str, start_date: datetime = None, end_date: date
 
     result = dict(result_list[0])
 
-    # for entry in result["by_class"]:
-    #     entry["aircraft_category"] = aircraft_category_dict[entry["aircraft_category"]]
-    #     for cls in entry["classes"]:
-    #         cls["aircraft_class"] = aircraft_class_dict[cls["aircraft_class"]]
+    for entry in result["by_class"]:
+        entry["aircraft_category"] = aircraft_category_dict[entry["aircraft_category"]]
+        for cls in entry["classes"]:
+            cls["aircraft_class"] = aircraft_class_dict[cls["aircraft_class"]]
 
     print(result)
 
