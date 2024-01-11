@@ -27,16 +27,15 @@ async def retrieve_flights(user: str = "", sort: str = "date", order: int = -1, 
     :param filter_val: Value to filter field by
     :return: List of flights
     """
-    if filter not in FlightDisplaySchema.__annotations__.keys():
-        raise HTTPException(400, f"Invalid filter field: {filter}")
-
     filter_options = {}
     if user != "":
         filter_options["user"] = ObjectId(user)
-    if filter != "":
+    if filter != "" and filter_val != "":
+        fs_keys = list(FlightCreateSchema.__annotations__.keys())
+        fs_keys.extend(list(FlightDisplaySchema.__annotations__.keys()))
+        if filter not in fs_keys:
+            raise HTTPException(400, f"Invalid filter field: {filter}")
         filter_options[filter] = filter_val
-
-    print(filter_options)
 
     flights = []
     async for flight in flight_collection.find(filter_options).sort({sort: order}):
