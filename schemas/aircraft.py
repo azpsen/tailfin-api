@@ -78,6 +78,9 @@ class AircraftClass(Enum):
     wss = "Weight-Shift Control Sea"
 
 
+aircraft_class_dict = {cls.name: cls.value for cls in AircraftClass}
+
+
 class AircraftCreateSchema(BaseModel):
     tail_no: str
     make: str

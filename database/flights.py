@@ -6,7 +6,8 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import HTTPException
 
-from schemas.aircraft import AircraftCreateSchema, aircraft_add_helper, AircraftCategory, AircraftClass
+from schemas.aircraft import AircraftCreateSchema, aircraft_add_helper, AircraftCategory, AircraftClass, \
+    aircraft_class_dict
 from .aircraft import retrieve_aircraft_by_tail, update_aircraft, update_aircraft_field, retrieve_aircraft
 from .db import flight_collection, aircraft_collection
 from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, flight_display_helper, \
@@ -107,12 +108,19 @@ async def retrieve_totals(user: str, start_date: datetime = None, end_date: date
 
     cursor = aircraft_collection.aggregate(pipeline)
 
-    result = await cursor.to_list(None)
+    result_list = await cursor.to_list(None)
 
-    if not result:
+    if not result_list:
         return {}
 
-    return dict(result[0])
+    result = dict(result_list[0])
+
+    print(aircraft_class_dict)
+
+    for entry in result["by_class"]:
+        entry["aircraft_class"] = aircraft_class_dict[entry["aircraft_class"]]
+
+    return result
 
 
 async def retrieve_flight(id: str) -> FlightDisplaySchema:
