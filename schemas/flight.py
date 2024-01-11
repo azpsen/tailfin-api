@@ -71,7 +71,7 @@ class FlightConciseSchema(BaseModel):
     comments: Optional[str] = None
 
 
-FlightByDateSchema = Dict[int, Union[List['FlightByDateSchema'], FlightConciseSchema]]
+FlightByDateSchema = Dict[int, Union[Dict[int, 'FlightByDateSchema'], FlightConciseSchema]]
 
 
 # HELPERS #

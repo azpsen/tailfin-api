@@ -1,5 +1,8 @@
+from typing import Any
+
 from bson import ObjectId
 from fastapi import HTTPException
+from pymongo.errors import WriteError
 
 from database.db import aircraft_collection
 from schemas.aircraft import AircraftDisplaySchema, AircraftCreateSchema, aircraft_display_helper, aircraft_add_helper
@@ -71,7 +74,7 @@ async def update_aircraft(body: AircraftCreateSchema, id: str) -> AircraftDispla
 
     :param body: Updated aircraft data
     :param id: ID of aircraft to update
-    :return: ID of updated aircraft
+    :return: Updated aircraft
     """
     aircraft = await aircraft_collection.find_one({"_id": ObjectId(id)})
 
@@ -82,7 +85,32 @@ async def update_aircraft(body: AircraftCreateSchema, id: str) -> AircraftDispla
     if updated_aircraft is None:
         raise HTTPException(500, "Failed to update flight")
 
-    return id
+    return AircraftDisplaySchema(**body.model_dump())
+
+
+async def update_aircraft_field(field: str, value: Any, id: str) -> AircraftDisplaySchema:
+    """
+    Update a single field of the given aircraft in the database
+
+    :param field: Field to update
+    :param value: Value to set field to
+    :param id: ID of aircraft to update
+    :return: Updated aircraft
+    """
+    aircraft = await aircraft_collection.find_one({"_id": ObjectId(id)})
+
+    if aircraft is None:
+        raise HTTPException(404, "Aircraft not found")
+
+    try:
+        updated_aircraft = await aircraft_collection.update_one({"_id": ObjectId(id)}, {"$set": {field: value}})
+    except WriteError as e:
+        raise HTTPException(400, e.details)
+
+    if updated_aircraft is None:
+        raise HTTPException(500, "Failed to update flight")
+
+    return AircraftDisplaySchema(**aircraft.model_dump())
 
 
 async def delete_aircraft(id: str) -> AircraftDisplaySchema:

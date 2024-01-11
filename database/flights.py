@@ -1,10 +1,13 @@
 import logging
 from datetime import datetime
+from typing import Dict, Union
 
 from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import HTTPException
 
+from schemas.aircraft import AircraftCreateSchema, aircraft_add_helper
+from .aircraft import retrieve_aircraft_by_tail, update_aircraft, update_aircraft_field
 from .db import flight_collection
 from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, flight_display_helper, \
     flight_add_helper
@@ -12,22 +15,30 @@ from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreat
 logger = logging.getLogger("api")
 
 
-async def retrieve_flights(user: str = "", sort: str = "date", order: int = -1) -> list[FlightConciseSchema]:
+async def retrieve_flights(user: str = "", sort: str = "date", order: int = -1, filter: str = "",
+                           filter_val: str = "") -> list[FlightConciseSchema]:
     """
     Retrieve a list of flights, optionally filtered by user
 
     :param user: User to filter flights by
     :param sort: Parameter to sort results by
     :param order: Sort order
+    :param filter: Field to filter flights by
+    :param filter_val: Value to filter field by
     :return: List of flights
     """
+    filter_options = {}
+    if user != "":
+        filter_options["user"] = ObjectId(user)
+    if filter != "":
+        filter_options[filter] = filter_val
+
+    print(filter_options)
+
     flights = []
-    if user == "":
-        async for flight in flight_collection.find().sort({sort: order}):
-            flights.append(FlightConciseSchema(**flight_display_helper(flight)))
-    else:
-        async for flight in flight_collection.find({"user": ObjectId(user)}).sort({sort: order}):
-            flights.append(FlightConciseSchema(**flight_display_helper(flight)))
+    async for flight in flight_collection.find(filter_options).sort({sort: order}):
+        flights.append(FlightConciseSchema(**flight_display_helper(flight)))
+
     return flights
 
 
@@ -37,7 +48,7 @@ async def retrieve_totals(user: str, start_date: datetime = None, end_date: date
     :param user:
     :return:
     """
-    match = {"user": ObjectId(user)}
+    match: Dict[str, Union[Dict, ObjectId]] = {"user": ObjectId(user)}
 
     if start_date is not None:
         match.setdefault("date", {}).setdefault("$gte", start_date)
@@ -122,19 +133,22 @@ async def insert_flight(body: FlightCreateSchema, id: str) -> ObjectId:
     :param id: ID of creating user
     :return: ID of inserted flight
     """
-    try:
-        aircraft = await flight_collection.find_one({"_id": ObjectId(body.aircraft)})
-    except InvalidId:
-        raise HTTPException(400, "Invalid aircraft ID")
+    aircraft = await retrieve_aircraft_by_tail(body.aircraft)
 
     if aircraft is None:
         raise HTTPException(404, "Aircraft not found")
 
+    # Update hobbs of aircraft to reflect new hobbs end
+    if body.hobbs_end > 0 and body.hobbs_end != aircraft.hobbs:
+        await update_aircraft_field("hobbs", body.hobbs_end, aircraft.id)
+
+    # Insert flight into database
     flight = await flight_collection.insert_one(flight_add_helper(body.model_dump(), id))
+
     return flight.inserted_id
 
 
-async def update_flight(body: FlightCreateSchema, id: str) -> FlightDisplaySchema:
+async def update_flight(body: FlightCreateSchema, id: str) -> str:
     """
     Update given flight in the database
 
@@ -147,12 +161,18 @@ async def update_flight(body: FlightCreateSchema, id: str) -> FlightDisplaySchem
     if flight is None:
         raise HTTPException(404, "Flight not found")
 
-    aircraft = await flight_collection.find_ond({"_id": ObjectId(body.aircraft)})
+    aircraft = await retrieve_aircraft_by_tail(body.aircraft)
 
     if aircraft is None:
         raise HTTPException(404, "Aircraft not found")
 
+    # Update hobbs of aircraft to reflect new hobbs end
+    if body.hobbs_end > 0 and body.hobbs_end != aircraft.hobbs:
+        await update_aircraft_field("hobbs", body.hobbs_end, aircraft.id)
+
+    # Update flight in database
     updated_flight = await flight_collection.update_one({"_id": ObjectId(id)}, {"$set": body.model_dump()})
+
     if updated_flight is None:
         raise HTTPException(500, "Failed to update flight")
 

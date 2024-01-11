@@ -15,7 +15,8 @@ logger = logging.getLogger("flights")
 
 
 @router.get('/', summary="Get flights logged by the currently logged-in user", status_code=200)
-async def get_flights(user: UserDisplaySchema = Depends(get_current_user), sort: str = "date", order: int = -1) -> list[
+async def get_flights(user: UserDisplaySchema = Depends(get_current_user), sort: str = "date", order: int = -1,
+                      filter: str = "", filter_val: str = "") -> list[
     FlightConciseSchema]:
     """
     Get a list of the flights logged by the currently logged-in user
@@ -23,25 +24,29 @@ async def get_flights(user: UserDisplaySchema = Depends(get_current_user), sort:
     :param user: Current user
     :param sort: Attribute to sort results by
     :param order: Order of sorting (asc/desc)
+    :param filter: Field to filter results by
+    :param filter_val: Value to filter field by
     :return: List of flights
     """
-    flights = await db.retrieve_flights(user.id, sort, order)
+    flights = await db.retrieve_flights(user.id, sort, order, filter, filter_val)
     return flights
 
 
 @router.get('/by-date', summary="Get flights logged by the current user, categorized by date", status_code=200,
             response_model=dict)
 async def get_flights_by_date(user: UserDisplaySchema = Depends(get_current_user), sort: str = "date",
-                              order: int = -1) -> dict:
+                              order: int = -1, filter: str = "", filter_val: str = "") -> dict:
     """
     Get a list of the flights logged by the currently logged-in user, categorized by year, month, and day
 
     :param user: Current user
     :param sort: Attribute to sort results by
     :param order: Order of sorting (asc/desc)
+    :param filter: Field to filter results by
+    :param filter_val: Value to filter field by
     :return:
     """
-    flights = await db.retrieve_flights(user.id, sort, order)
+    flights = await db.retrieve_flights(user.id, sort, order, filter, filter_val)
     flights_ordered: FlightByDateSchema = {}
 
     for flight in flights:
