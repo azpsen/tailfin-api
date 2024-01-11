@@ -6,9 +6,9 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import HTTPException
 
-from schemas.aircraft import AircraftCreateSchema, aircraft_add_helper
-from .aircraft import retrieve_aircraft_by_tail, update_aircraft, update_aircraft_field
-from .db import flight_collection
+from schemas.aircraft import AircraftCreateSchema, aircraft_add_helper, AircraftCategory, AircraftClass
+from .aircraft import retrieve_aircraft_by_tail, update_aircraft, update_aircraft_field, retrieve_aircraft
+from .db import flight_collection, aircraft_collection
 from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, flight_display_helper, \
     flight_add_helper
 
@@ -57,59 +57,62 @@ async def retrieve_totals(user: str, start_date: datetime = None, end_date: date
     if end_date is not None:
         match.setdefault("date", {}).setdefault("$lte", end_date)
 
-    cursor = flight_collection.aggregate([
-        {"$match": match},
+    pipeline = [
+        {"$match": {"user": ObjectId(user)}},
+        {"$lookup": {
+            "from": "flight",
+            "let": {"aircraft": "$tail_no"},
+            "pipeline": [{"$match": {"$expr": {"$eq": ["$$aircraft", "$aircraft"]}}}],
+            "as": "flight_data"
+        }},
+        {"$unwind": "$flight_data"},
         {"$group": {
-            "_id": None,
-            "time_total": {"$sum": "$time_total"},
-            "time_solo": {"$sum": "$time_solo"},
-            "time_night": {"$sum": "$time_night"},
-            "time_pic": {"$sum": "$time_pic"},
-            "time_sic": {"$sum": "$time_sic"},
-            "time_instrument": {"$sum": "$time_instrument"},
-            "time_sim": {"$sum": "$time_sim"},
-            "time_xc": {"$sum": "$time_xc"},
-            "landings_day": {"$sum": "$landings_day"},
-            "landings_night": {"$sum": "$landings_night"},
+            "_id": "$aircraft_class",
+            "time_total": {"$sum": "$flight_data.time_total"}
+        }},
+        {"$project": {
+            "_id": 0,
+            "aircraft_class": "$_id",
+            "time_total": 1
+        }},
+        {"$facet": {
+            "by_class": [{"$match": {}}],
+            "totals": [
+                {"$group": {
+                    "_id": None,
+                    "time_total": {"$sum": "$time_total"},
+                    "time_solo": {"$sum": "$time_solo"},
+                    "time_night": {"$sum": "$time_night"},
+                    "time_pic": {"$sum": "$time_pic"},
+                    "time_sic": {"$sum": "$time_sic"},
+                    "time_instrument": {"$sum": "$time_instrument"},
+                    "time_sim": {"$sum": "$time_sim"},
+                    "time_xc": {"$sum": "$time_xc"},
+                    "landings_day": {"$sum": "$landings_day"},
+                    "landings_night": {"$sum": "$landings_night"},
+                    "xc_dual_recvd": {"$sum": {"$min": ["$time_xc", "$dual_recvd"]}},
+                    "xc_solo": {"$sum": {"$min": ["$time_xc", "$time_solo"]}},
+                    "xc_pic": {"$sum": {"$min": ["$time_xc", "$time_pic"]}},
+                    "night_dual_recvd": {"$sum": {"$min": ["$time_night", "$dual_recvd"]}},
+                    "night_pic": {"$sum": {"$min": ["$time_night", "$time_pic"]}}
+                }},
+                {"$project": {"_id": 0}},
+            ]
+        }},
+        {"$project": {
+            "by_class": 1,
+            "totals": {"$arrayElemAt": ["$totals", 0]}
+        }}
+    ]
 
-        }
-        },
-        {"$project": {"_id": 0}},
-    ])
+    cursor = aircraft_collection.aggregate(pipeline)
 
-    result = await cursor.to_list(length=None)
+    result = await cursor.to_list(None)
 
     if not result:
-        return {
-            "time_total": 0.0,
-            "time_solo": 0.0,
-            "time_night": 0.0,
-            "time_pic": 0.0,
-            "time_sic": 0.0,
-            "time_instrument": 0.0,
-            "time_sim": 0.0,
-            "time_xc": 0.0,
-            "landings_day": 0,
-            "landings_night": 0,
-            "xc_dual_recvd": 0.0,
-            "xc_solo": 0.0,
-            "xc_pic": 0.0,
-            "night_dual_recvd": 0.0,
-            "night_pic": 0.0
+        return {}
 
-        }
-
-    totals = result[0]
-    async for log in flight_collection.find({"user": ObjectId(user)}):
-        flight = FlightDisplaySchema(**flight_display_helper(log))
-        totals["xc_dual_recvd"] = totals.get("xc_dual_recvd", 0) + min(flight.time_xc, flight.dual_recvd)
-        totals["xc_solo"] = totals.get("xc_solo", 0) + min(flight.time_xc, flight.time_solo)
-        totals["xc_pic"] = totals.get("xc_pic", 0) + min(flight.time_xc, flight.time_pic)
-        totals["night_dual_recvd"] = totals.get("night_dual_recvd", 0) + min(flight.time_night,
-                                                                             flight.dual_recvd)
-        totals["night_pic"] = totals.get("night_pic", 0) + min(flight.time_night, flight.time_pic)
-
-    return totals
+    return dict(result[0])
 
 
 async def retrieve_flight(id: str) -> FlightDisplaySchema:
@@ -141,7 +144,7 @@ async def insert_flight(body: FlightCreateSchema, id: str) -> ObjectId:
         raise HTTPException(404, "Aircraft not found")
 
     # Update hobbs of aircraft to reflect new hobbs end
-    if body.hobbs_end > 0 and body.hobbs_end != aircraft.hobbs:
+    if body.hobbs_end and body.hobbs_end > 0 and body.hobbs_end != aircraft.hobbs:
         await update_aircraft_field("hobbs", body.hobbs_end, aircraft.id)
 
     # Insert flight into database
