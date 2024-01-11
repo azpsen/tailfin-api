@@ -48,6 +48,9 @@ class AircraftCategory(Enum):
     weight_shift = "Weight-Shift Control"
 
 
+aircraft_category_dict = {cls.name: cls.value for cls in AircraftCategory}
+
+
 class AircraftClass(Enum):
     # Airplane
     sel = "Single-Engine Land"

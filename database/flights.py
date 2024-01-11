@@ -7,7 +7,7 @@ from bson.errors import InvalidId
 from fastapi import HTTPException
 
 from schemas.aircraft import AircraftCreateSchema, aircraft_add_helper, AircraftCategory, AircraftClass, \
-    aircraft_class_dict
+    aircraft_class_dict, aircraft_category_dict
 from .aircraft import retrieve_aircraft_by_tail, update_aircraft, update_aircraft_field, retrieve_aircraft
 from .db import flight_collection, aircraft_collection
 from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, flight_display_helper, \
@@ -68,13 +68,21 @@ async def retrieve_totals(user: str, start_date: datetime = None, end_date: date
         }},
         {"$unwind": "$flight_data"},
         {"$group": {
-            "_id": "$aircraft_class",
-            "time_total": {"$sum": "$flight_data.time_total"}
+            # "_id": "$aircraft_category",
+            "_id": {"aircraft_category": "$aircraft_category", "aircraft_class": "$aircraft_class"},
+            "time_total": {"$sum": "$flight_data.time_total"},
+        }},
+        {"$group": {
+            "_id": "$_id.aircraft_category",
+            "classes": {"$push": {
+                "aircraft_class": "$_id.aircraft_class",
+                "time_total": "$time_total",
+            }},
         }},
         {"$project": {
             "_id": 0,
-            "aircraft_class": "$_id",
-            "time_total": 1
+            "aircraft_category": "$_id",
+            "classes": 1,
         }},
         {"$facet": {
             "by_class": [{"$match": {}}],
@@ -115,10 +123,12 @@ async def retrieve_totals(user: str, start_date: datetime = None, end_date: date
 
     result = dict(result_list[0])
 
-    print(aircraft_class_dict)
+    # for entry in result["by_class"]:
+    #     entry["aircraft_category"] = aircraft_category_dict[entry["aircraft_category"]]
+    #     for cls in entry["classes"]:
+    #         cls["aircraft_class"] = aircraft_class_dict[cls["aircraft_class"]]
 
-    for entry in result["by_class"]:
-        entry["aircraft_class"] = aircraft_class_dict[entry["aircraft_class"]]
+    print(result)
 
     return result
 
