@@ -27,6 +27,9 @@ async def retrieve_flights(user: str = "", sort: str = "date", order: int = -1, 
     :param filter_val: Value to filter field by
     :return: List of flights
     """
+    if filter not in FlightDisplaySchema.__annotations__.keys():
+        raise HTTPException(400, f"Invalid filter field: {filter}")
+
     filter_options = {}
     if user != "":
         filter_options["user"] = ObjectId(user)
