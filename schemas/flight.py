@@ -1,13 +1,15 @@
 import datetime
+import typing
 from typing import Optional, Dict, Union, List
 
 from bson import ObjectId
+from fastapi import UploadFile, File
 from pydantic import BaseModel
 
 from schemas.utils import PositiveFloatNullable, PositiveFloat, PositiveInt, PyObjectId
 
 
-class FlightCreateSchema(BaseModel):
+class FlightSchema(BaseModel):
     date: datetime.datetime
     aircraft: str
     waypoint_from: Optional[str] = None
@@ -43,10 +45,60 @@ class FlightCreateSchema(BaseModel):
     time_sim: PositiveFloat
     time_ground: PositiveFloat
 
-    tags: list[str] = []
+    tags: List[str] = []
 
-    pax: list[str] = []
-    crew: list[str] = []
+    pax: List[str] = []
+    crew: List[str] = []
+
+    comments: Optional[str] = None
+
+
+class FlightCreateSchema(FlightSchema):
+    images: List[str] = []
+
+
+class FlightPatchSchema(BaseModel):
+    date: Optional[datetime.datetime] = None
+    aircraft: Optional[str] = None
+    waypoint_from: Optional[str] = None
+    waypoint_to: Optional[str] = None
+    route: Optional[str] = None
+
+    hobbs_start: Optional[PositiveFloatNullable] = None
+    hobbs_end: Optional[PositiveFloatNullable] = None
+
+    time_start: Optional[datetime.datetime] = None
+    time_off: Optional[datetime.datetime] = None
+    time_down: Optional[datetime.datetime] = None
+    time_stop: Optional[datetime.datetime] = None
+
+    time_total: Optional[PositiveFloat] = None
+    time_pic: Optional[PositiveFloat] = None
+    time_sic: Optional[PositiveFloat] = None
+    time_night: Optional[PositiveFloat] = None
+    time_solo: Optional[PositiveFloat] = None
+
+    time_xc: Optional[PositiveFloat] = None
+    dist_xc: Optional[PositiveFloat] = None
+
+    landings_day: Optional[PositiveInt] = None
+    landings_night: Optional[PositiveInt] = None
+
+    time_instrument: Optional[PositiveFloat] = None
+    time_sim_instrument: Optional[PositiveFloat] = None
+    holds_instrument: Optional[PositiveInt] = None
+
+    dual_given: Optional[PositiveFloat] = None
+    dual_recvd: Optional[PositiveFloat] = None
+    time_sim: Optional[PositiveFloat] = None
+    time_ground: Optional[PositiveFloat] = None
+
+    tags: Optional[List[str]] = None
+
+    pax: Optional[List[str]] = None
+    crew: Optional[List[str]] = None
+
+    images: Optional[List[str]] = None
 
     comments: Optional[str] = None
 
@@ -75,7 +127,6 @@ FlightByDateSchema = Dict[int, Union[Dict[int, 'FlightByDateSchema'], FlightConc
 
 
 # HELPERS #
-
 
 def flight_display_helper(flight: dict) -> dict:
     """

@@ -1,12 +1,16 @@
 import logging
 from datetime import datetime
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Form, UploadFile, File
 
 from app.deps import get_current_user, admin_required
 from database import flights as db
+from database.flights import update_flight_fields
+from database.img import upload_image
 
-from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, FlightByDateSchema
+from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, FlightByDateSchema, \
+    FlightSchema
 from schemas.user import UserDisplaySchema, AuthLevel
 
 router = APIRouter()
@@ -109,18 +113,47 @@ async def get_flight(flight_id: str, user: UserDisplaySchema = Depends(get_curre
 
 
 @router.post('/', summary="Add a flight logbook entry", status_code=200)
-async def add_flight(flight_body: FlightCreateSchema, user: UserDisplaySchema = Depends(get_current_user)) -> dict:
+async def add_flight(flight_body: FlightSchema, user: UserDisplaySchema = Depends(get_current_user)) -> dict:
     """
     Add a flight logbook entry
 
     :param flight_body: Information associated with new flight
+    :param images: Images associated with the new flight log
     :param user: Currently logged-in user
-    :return: Error message if request invalid, else ID of newly created log
+    :return: ID of newly created log
     """
 
-    flight = await db.insert_flight(flight_body, user.id)
+    flight_create = FlightCreateSchema(**flight_body.model_dump(), images=[])
+
+    flight = await db.insert_flight(flight_create, user.id)
 
     return {"id": str(flight)}
+
+
+@router.post('/{flight_id}/add_images', summary="Add images to a flight log")
+async def add_images(log_id: str, images: list[UploadFile] = File(...),
+                     user: UserDisplaySchema = Depends(get_current_user)):
+    """
+    Add images to a flight logbook entry
+
+    :param log_id: ID of flight log to add images to
+    :param images: Images to add
+    :param user: Currently logged-in user
+    :return: ID of updated flight
+    """
+    flight = await db.retrieve_flight(log_id)
+
+    if not str(flight.user) == user.id and not user.level == AuthLevel.ADMIN:
+        raise HTTPException(403, "Unauthorized access")
+
+    image_ids = flight.images
+
+    if images:
+        for image in images:
+            image_response = await upload_image(image, user.id)
+            image_ids.append(image_response["file_id"])
+
+    return await update_flight_fields(log_id, dict(images=image_ids))
 
 
 @router.put('/{flight_id}', summary="Update the given flight with new information", status_code=200)
@@ -132,7 +165,7 @@ async def update_flight(flight_id: str, flight_body: FlightCreateSchema,
     :param flight_id: ID of flight to update
     :param flight_body: New flight information to update with
     :param user: Currently logged-in user
-    :return: Updated flight
+    :return: ID of updated flight
     """
     flight = await get_flight(flight_id, user)
     if flight is None:
@@ -144,6 +177,29 @@ async def update_flight(flight_id: str, flight_body: FlightCreateSchema,
 
     updated_flight_id = await db.update_flight(flight_body, flight_id)
 
+    return {"id": str(updated_flight_id)}
+
+
+@router.patch('/{flight_id}', summary="Update a single field of the given flight with new information", status_code=200)
+async def patch_flight(flight_id: str, update: dict,
+                       user: UserDisplaySchema = Depends(get_current_user)) -> dict:
+    """
+    Update a single field of the given flight
+
+    :param flight_id: ID of flight to update
+    :param update: Dictionary of fields and values to update
+    :param user: Currently logged-in user
+    :return: ID of updated flight
+    """
+    flight = await get_flight(flight_id, user)
+    if flight is None:
+        raise HTTPException(404, "Flight not found")
+
+    if str(flight.user) != user.id and AuthLevel(user.level) != AuthLevel.ADMIN:
+        logger.info("Attempted access to unauthorized flight by %s", user.username)
+        raise HTTPException(403, "Unauthorized access")
+
+    updated_flight_id = await db.update_flight_fields(flight_id, update)
     return {"id": str(updated_flight_id)}
 
 

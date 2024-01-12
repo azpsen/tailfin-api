@@ -1,19 +1,23 @@
 import logging
 from datetime import datetime
-from typing import Dict, Union
+from typing import Dict, Union, Any, get_args, List, get_origin, _type_check, get_type_hints
 
 from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import HTTPException
+from pydantic import parse_obj_as, TypeAdapter, ValidationError, create_model
 
 from schemas.aircraft import AircraftCreateSchema, aircraft_add_helper, AircraftCategory, AircraftClass, \
     aircraft_class_dict, aircraft_category_dict
 from .aircraft import retrieve_aircraft_by_tail, update_aircraft, update_aircraft_field, retrieve_aircraft
 from .db import flight_collection, aircraft_collection
 from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, flight_display_helper, \
-    flight_add_helper
+    flight_add_helper, FlightPatchSchema
 
 logger = logging.getLogger("api")
+
+fs_keys = list(FlightCreateSchema.__annotations__.keys())
+fs_keys.extend(list(FlightDisplaySchema.__annotations__.keys()))
 
 
 async def retrieve_flights(user: str = "", sort: str = "date", order: int = -1, filter: str = "",
@@ -32,8 +36,6 @@ async def retrieve_flights(user: str = "", sort: str = "date", order: int = -1, 
     if user != "":
         filter_options["user"] = ObjectId(user)
     if filter != "" and filter_val != "":
-        fs_keys = list(FlightCreateSchema.__annotations__.keys())
-        fs_keys.extend(list(FlightDisplaySchema.__annotations__.keys()))
         if filter not in fs_keys:
             raise HTTPException(400, f"Invalid filter field: {filter}")
         filter_options[filter] = filter_val
@@ -207,6 +209,44 @@ async def update_flight(body: FlightCreateSchema, id: str) -> str:
 
     # Update flight in database
     updated_flight = await flight_collection.update_one({"_id": ObjectId(id)}, {"$set": body.model_dump()})
+
+    if updated_flight is None:
+        raise HTTPException(500, "Failed to update flight")
+
+    return id
+
+
+async def update_flight_fields(id: str, update: dict) -> str:
+    """
+    Update a single field of the given flight in the database
+
+    :param id: ID of flight to update
+    :param update: Dictionary of fields and values to update
+    :return: ID of updated flight
+    """
+    for field in update.keys():
+        if field not in fs_keys:
+            raise HTTPException(400, f"Invalid update field: {field}")
+
+    flight = await flight_collection.find_one({"_id": ObjectId(id)})
+
+    if flight is None:
+        raise HTTPException(404, "Flight not found")
+
+    try:
+        parsed_update = FlightPatchSchema.model_validate(update)
+    except ValidationError as e:
+        raise HTTPException(422, e.errors())
+
+    update_dict = {field: value for field, value in parsed_update.model_dump().items() if field in update.keys()}
+
+    if "aircraft" in update_dict.keys():
+        aircraft = await retrieve_aircraft_by_tail(update_dict["aircraft"])
+
+        if aircraft is None:
+            raise HTTPException(404, "Aircraft not found")
+
+    updated_flight = await flight_collection.update_one({"_id": ObjectId(id)}, {"$set": update_dict})
 
     if updated_flight is None:
         raise HTTPException(500, "Failed to update flight")

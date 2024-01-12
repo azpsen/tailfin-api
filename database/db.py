@@ -25,4 +25,5 @@ except Exception as e:
 user_collection = db_client["user"]
 flight_collection = db_client["flight"]
 aircraft_collection = db_client["aircraft"]
+files_collection = db_client.fs.files
 token_collection = db_client["token_blacklist"]
