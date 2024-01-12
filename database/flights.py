@@ -58,77 +58,89 @@ async def retrieve_totals(user: str, start_date: datetime = None, end_date: date
     if end_date is not None:
         match.setdefault("date", {}).setdefault("$lte", end_date)
 
-    pipeline = [
+    by_class_pipeline = [
         {"$match": {"user": ObjectId(user)}},
         {"$lookup": {
             "from": "flight",
             "let": {"aircraft": "$tail_no"},
-            "pipeline": [{"$match": {"$expr": {"$eq": ["$$aircraft", "$aircraft"]}}}],
+            "pipeline": [
+                {"$match": {
+                    "$expr": {
+                        "$eq": ["$$aircraft", "$aircraft"]
+                    }
+                }}
+            ],
             "as": "flight_data"
         }},
         {"$unwind": "$flight_data"},
         {"$group": {
-            # "_id": "$aircraft_category",
-            "_id": {"aircraft_category": "$aircraft_category", "aircraft_class": "$aircraft_class"},
-            "time_total": {"$sum": "$flight_data.time_total"},
+            "_id": {
+                "aircraft_category": "$aircraft_category",
+                "aircraft_class": "$aircraft_class"
+            },
+            "time_total": {
+                "$sum": "$flight_data.time_total"
+            },
         }},
         {"$group": {
             "_id": "$_id.aircraft_category",
-            "classes": {"$push": {
-                "aircraft_class": "$_id.aircraft_class",
-                "time_total": "$time_total",
-            }},
+            "classes": {
+                "$push": {
+                    "aircraft_class": "$_id.aircraft_class",
+                    "time_total": "$time_total",
+                }
+            },
         }},
         {"$project": {
             "_id": 0,
             "aircraft_category": "$_id",
             "classes": 1,
         }},
-        {"$facet": {
-            "by_class": [{"$match": {}}],
-            "totals": [
-                {"$group": {
-                    "_id": None,
-                    "time_total": {"$sum": "$time_total"},
-                    "time_solo": {"$sum": "$time_solo"},
-                    "time_night": {"$sum": "$time_night"},
-                    "time_pic": {"$sum": "$time_pic"},
-                    "time_sic": {"$sum": "$time_sic"},
-                    "time_instrument": {"$sum": "$time_instrument"},
-                    "time_sim": {"$sum": "$time_sim"},
-                    "time_xc": {"$sum": "$time_xc"},
-                    "landings_day": {"$sum": "$landings_day"},
-                    "landings_night": {"$sum": "$landings_night"},
-                    "xc_dual_recvd": {"$sum": {"$min": ["$time_xc", "$dual_recvd"]}},
-                    "xc_solo": {"$sum": {"$min": ["$time_xc", "$time_solo"]}},
-                    "xc_pic": {"$sum": {"$min": ["$time_xc", "$time_pic"]}},
-                    "night_dual_recvd": {"$sum": {"$min": ["$time_night", "$dual_recvd"]}},
-                    "night_pic": {"$sum": {"$min": ["$time_night", "$time_pic"]}}
-                }},
-                {"$project": {"_id": 0}},
-            ]
-        }},
-        {"$project": {
-            "by_class": 1,
-            "totals": {"$arrayElemAt": ["$totals", 0]}
-        }}
     ]
 
-    cursor = aircraft_collection.aggregate(pipeline)
+    class_cursor = aircraft_collection.aggregate(by_class_pipeline)
+    by_class_list = await class_cursor.to_list(None)
 
-    result_list = await cursor.to_list(None)
+    totals_pipeline = [
+        {"$match": {"user": ObjectId(user)}},
+        {"$group": {
+            "_id": None,
+            "time_total": {"$sum": "$time_total"},
+            "time_solo": {"$sum": "$time_solo"},
+            "time_night": {"$sum": "$time_night"},
+            "time_pic": {"$sum": "$time_pic"},
+            "time_sic": {"$sum": "$time_sic"},
+            "time_instrument": {"$sum": "$time_instrument"},
+            "time_sim": {"$sum": "$time_sim"},
+            "time_xc": {"$sum": "$time_xc"},
+            "landings_day": {"$sum": "$landings_day"},
+            "landings_night": {"$sum": "$landings_night"},
+            "xc_dual_recvd": {"$sum": {"$min": ["$time_xc", "$dual_recvd"]}},
+            "xc_solo": {"$sum": {"$min": ["$time_xc", "$time_solo"]}},
+            "xc_pic": {"$sum": {"$min": ["$time_xc", "$time_pic"]}},
+            "night_dual_recvd": {"$sum": {"$min": ["$time_night", "$dual_recvd"]}},
+            "night_pic": {"$sum": {"$min": ["$time_night", "$time_pic"]}}
+        }},
+        {"$project": {"_id": 0}},
+    ]
 
-    if not result_list:
+    totals_cursor = flight_collection.aggregate(totals_pipeline)
+    totals_list = await totals_cursor.to_list(None)
+
+    if not totals_list and not by_class_list:
         return {}
 
-    result = dict(result_list[0])
+    totals_dict = dict(totals_list[0])
 
-    for entry in result["by_class"]:
+    for entry in by_class_list:
         entry["aircraft_category"] = aircraft_category_dict[entry["aircraft_category"]]
         for cls in entry["classes"]:
             cls["aircraft_class"] = aircraft_class_dict[cls["aircraft_class"]]
 
-    print(result)
+    result = {
+        "by_class": by_class_list,
+        "totals": totals_dict
+    }
 
     return result
 
