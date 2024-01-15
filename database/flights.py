@@ -203,7 +203,7 @@ async def update_flight(body: FlightCreateSchema, id: str) -> str:
         raise HTTPException(404, "Aircraft not found")
 
     # Update hobbs of aircraft to reflect new hobbs end
-    if body.hobbs_end > 0 and body.hobbs_end != aircraft.hobbs:
+    if body.hobbs_end and body.hobbs_end and 0 < aircraft.hobbs != body.hobbs_end:
         await update_aircraft_field("hobbs", body.hobbs_end, aircraft.id)
 
     # Update flight in database
