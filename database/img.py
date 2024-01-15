@@ -1,4 +1,6 @@
 import io
+import mimetypes
+import os
 
 from gridfs import NoFile
 
@@ -40,19 +42,20 @@ async def retrieve_image_metadata(image_id: str = "") -> dict:
     if info is None:
         raise HTTPException(404, "Image not found")
 
-    return info["metadata"]
+    file_extension = os.path.splitext(info["filename"])[1]
+    media_type = "image/webp" if file_extension == ".webp" else mimetypes.types_map.get(file_extension)
+
+    return {**info["metadata"], 'contentType': media_type if media_type else ""}
 
 
-async def retrieve_image(image_id: str = "") -> tuple[io.BytesIO, str]:
+async def retrieve_image(image_id: str = "") -> tuple[io.BytesIO, str, str]:
     """
     Retrieve the given image file from the database along with the user who created it
 
     :param image_id: ID of image to retrieve
-    :return: BytesIO stream of image file, ID of user that uploaded the image
+    :return: BytesIO stream of image file, ID of user that uploaded the image, file type
     """
     metadata = await retrieve_image_metadata(image_id)
-
-    print(metadata)
 
     stream = io.BytesIO()
     try:
@@ -62,7 +65,7 @@ async def retrieve_image(image_id: str = "") -> tuple[io.BytesIO, str]:
 
     stream.seek(0)
 
-    return stream, metadata["user"] if metadata["user"] else ""
+    return stream, metadata["user"] if metadata["user"] else "", metadata["contentType"]
 
 
 async def delete_image(image_id: str = ""):

@@ -24,15 +24,12 @@ async def get_image(user: UserDisplaySchema = Depends(get_current_user),
     :param image_id: ID of image to retrieve
     :return: Stream associated with requested image
     """
-    stream, user_created = await img.retrieve_image(image_id)
+    stream, user_created, media_type = await img.retrieve_image(image_id)
 
     if not user.id == user_created and not user.level == AuthLevel.ADMIN:
         raise HTTPException(403, "Access denied")
 
-    file_extension = os.path.splitext(image_id)[1]
-    media_type = mimetypes.types_map.get(file_extension)
-
-    return StreamingResponse(stream, media_type=media_type)
+    return StreamingResponse(stream, headers={'Content-Type': media_type})
 
 
 @router.post("/upload", description="Upload an image to the database")

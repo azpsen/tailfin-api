@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, List
 
 from fastapi import APIRouter, HTTPException, Depends, Form, UploadFile, File
 
@@ -130,8 +130,8 @@ async def add_flight(flight_body: FlightSchema, user: UserDisplaySchema = Depend
     return {"id": str(flight)}
 
 
-@router.post('/{flight_id}/add_images', summary="Add images to a flight log")
-async def add_images(log_id: str, images: list[UploadFile] = File(...),
+@router.post('/{log_id}/add_images', summary="Add images to a flight log")
+async def add_images(log_id: str, images: List[UploadFile] = File(...),
                      user: UserDisplaySchema = Depends(get_current_user)):
     """
     Add images to a flight logbook entry
