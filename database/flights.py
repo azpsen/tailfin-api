@@ -16,8 +16,7 @@ from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreat
 
 logger = logging.getLogger("api")
 
-fs_keys = list(FlightCreateSchema.__annotations__.keys())
-fs_keys.extend(list(FlightDisplaySchema.__annotations__.keys()))
+fs_keys = list(FlightPatchSchema.__annotations__.keys()) + list(FlightDisplaySchema.__annotations__.keys())
 
 
 async def retrieve_flights(user: str = "", sort: str = "date", order: int = -1, filter: str = "",
@@ -224,6 +223,7 @@ async def update_flight_fields(id: str, update: dict) -> str:
     :param update: Dictionary of fields and values to update
     :return: ID of updated flight
     """
+    print(fs_keys)
     for field in update.keys():
         if field not in fs_keys:
             raise HTTPException(400, f"Invalid update field: {field}")
