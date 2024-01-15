@@ -13,6 +13,7 @@ from .aircraft import retrieve_aircraft_by_tail, update_aircraft_field
 from .db import flight_collection, aircraft_collection
 from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, flight_display_helper, \
     flight_add_helper, FlightPatchSchema
+from .img import delete_image
 
 logger = logging.getLogger("api")
 
@@ -264,6 +265,10 @@ async def delete_flight(id: str) -> FlightDisplaySchema:
 
     if flight is None:
         raise HTTPException(404, "Flight not found")
+
+    # Delete associated images
+    for image in flight.images:
+        await delete_image(image)
 
     await flight_collection.delete_one({"_id": to_objectid(id)})
     return FlightDisplaySchema(**flight_display_helper(flight))
