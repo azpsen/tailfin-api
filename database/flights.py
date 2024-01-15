@@ -267,8 +267,9 @@ async def delete_flight(id: str) -> FlightDisplaySchema:
         raise HTTPException(404, "Flight not found")
 
     # Delete associated images
-    for image in flight.images:
-        await delete_image(image)
+    if "images" in flight:
+        for image in flight["images"]:
+            await delete_image(image)
 
     await flight_collection.delete_one({"_id": to_objectid(id)})
     return FlightDisplaySchema(**flight_display_helper(flight))
