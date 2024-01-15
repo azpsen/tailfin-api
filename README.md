@@ -111,7 +111,8 @@ Once the server is running, full API documentation is available at `localhost:80
 
 - [x] Multi-user authentication
 - [x] Basic flight logging CRUD endpoints
-- [x] Basic flight logging CRUD endpoints
+- [x] Aircraft management and association with flight logs
+- [x] Attach photos to log entries
 - [ ] GPS track recording
 - [ ] Implement JWT refresh tokens
 - [ ] PDF Export
