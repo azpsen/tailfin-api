@@ -223,7 +223,6 @@ async def update_flight_fields(id: str, update: dict) -> str:
     :param update: Dictionary of fields and values to update
     :return: ID of updated flight
     """
-    print(fs_keys)
     for field in update.keys():
         if field not in fs_keys:
             raise HTTPException(400, f"Invalid update field: {field}")
