@@ -1,10 +1,10 @@
 from typing import Any
 
-from bson import ObjectId
 from fastapi import HTTPException
 from pymongo.errors import WriteError
 
 from database.db import aircraft_collection
+from utils import to_objectid
 from schemas.aircraft import AircraftDisplaySchema, AircraftCreateSchema, aircraft_display_helper, aircraft_add_helper
 
 
@@ -20,7 +20,7 @@ async def retrieve_aircraft(user: str = "") -> list[AircraftDisplaySchema]:
         async for doc in aircraft_collection.find():
             aircraft.append(AircraftDisplaySchema(**aircraft_display_helper(doc)))
     else:
-        async for doc in aircraft_collection.find({"user": ObjectId(user)}):
+        async for doc in aircraft_collection.find({"user": to_objectid(user)}):
             aircraft.append(AircraftDisplaySchema(**aircraft_display_helper(doc)))
 
     return aircraft
@@ -48,7 +48,7 @@ async def retrieve_aircraft_by_id(id: str) -> AircraftDisplaySchema:
     :param tail_no: Tail number of desired aircraft
     :return: Aircraft details
     """
-    aircraft = await aircraft_collection.find_one({"_id": ObjectId(id)})
+    aircraft = await aircraft_collection.find_one({"_id": to_objectid(id)})
 
     if aircraft is None:
         raise HTTPException(404, "Aircraft not found")
@@ -56,7 +56,7 @@ async def retrieve_aircraft_by_id(id: str) -> AircraftDisplaySchema:
     return AircraftDisplaySchema(**aircraft_display_helper(aircraft))
 
 
-async def insert_aircraft(body: AircraftCreateSchema, id: str) -> ObjectId:
+async def insert_aircraft(body: AircraftCreateSchema, id: str) -> to_objectid:
     """
     Insert a new aircraft into the database
 
@@ -77,17 +77,17 @@ async def update_aircraft(body: AircraftCreateSchema, id: str, user: str) -> Air
     :param user: ID of updating user
     :return: Updated aircraft
     """
-    aircraft = await aircraft_collection.find_one({"_id": ObjectId(id)})
+    aircraft = await aircraft_collection.find_one({"_id": to_objectid(id)})
 
     if aircraft is None:
         raise HTTPException(404, "Aircraft not found")
 
-    updated_aircraft = await aircraft_collection.update_one({"_id": ObjectId(id)},
+    updated_aircraft = await aircraft_collection.update_one({"_id": to_objectid(id)},
                                                             {"$set": aircraft_add_helper(body.model_dump(), user)})
     if updated_aircraft is None:
         raise HTTPException(500, "Failed to update aircraft")
 
-    aircraft = await aircraft_collection.find_one({"_id": ObjectId(id)})
+    aircraft = await aircraft_collection.find_one({"_id": to_objectid(id)})
 
     if aircraft is None:
         raise HTTPException(500, "Failed to fetch updated aircraft")
@@ -104,13 +104,13 @@ async def update_aircraft_field(field: str, value: Any, id: str) -> AircraftDisp
     :param id: ID of aircraft to update
     :return: Updated aircraft
     """
-    aircraft = await aircraft_collection.find_one({"_id": ObjectId(id)})
+    aircraft = await aircraft_collection.find_one({"_id": to_objectid(id)})
 
     if aircraft is None:
         raise HTTPException(404, "Aircraft not found")
 
     try:
-        updated_aircraft = await aircraft_collection.update_one({"_id": ObjectId(id)}, {"$set": {field: value}})
+        updated_aircraft = await aircraft_collection.update_one({"_id": to_objectid(id)}, {"$set": {field: value}})
     except WriteError as e:
         raise HTTPException(400, e.details)
 
@@ -127,10 +127,10 @@ async def delete_aircraft(id: str) -> AircraftDisplaySchema:
     :param id: ID of aircraft to delete
     :return: Deleted aircraft information
     """
-    aircraft = await aircraft_collection.find_one({"_id": ObjectId(id)})
+    aircraft = await aircraft_collection.find_one({"_id": to_objectid(id)})
 
     if aircraft is None:
         raise HTTPException(404, "Aircraft not found")
 
-    await aircraft_collection.delete_one({"_id": ObjectId(id)})
+    await aircraft_collection.delete_one({"_id": to_objectid(id)})
     return AircraftDisplaySchema(**aircraft_display_helper(aircraft))

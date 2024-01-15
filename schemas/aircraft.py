@@ -1,6 +1,6 @@
 from enum import Enum
 
-from bson import ObjectId
+from utils import to_objectid
 from pydantic import BaseModel, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
@@ -145,7 +145,7 @@ def aircraft_add_helper(aircraft: dict, user: str) -> dict:
     :param user: User that created aircraft
     :return: Combined dict that can be inserted into db
     """
-    aircraft["user"] = ObjectId(user)
+    aircraft["user"] = to_objectid(user)
     aircraft["aircraft_category"] = aircraft["aircraft_category"].name
     aircraft["aircraft_class"] = aircraft["aircraft_class"].name
 

@@ -1,6 +1,8 @@
 import logging
 
 from bson import ObjectId
+
+from utils import to_objectid
 from fastapi import HTTPException
 
 from .db import user_collection, flight_collection
@@ -41,7 +43,7 @@ async def get_user_info_id(id: str) -> UserDisplaySchema:
     :param id: ID of user to retrieve
     :return: User information
     """
-    user = await user_collection.find_one({"_id": ObjectId(id)})
+    user = await user_collection.find_one({"_id": to_objectid(id)})
     if user:
         return UserDisplaySchema(**user_helper(user))
 
@@ -65,7 +67,7 @@ async def get_user_system_info_id(id: str) -> UserSystemSchema:
     :param id: ID of user to retrieve
     :return: User information and password
     """
-    user = await user_collection.find_one({"_id": ObjectId(id)})
+    user = await user_collection.find_one({"_id": to_objectid(id)})
     if user:
         return UserSystemSchema(**system_user_helper(user))
 
@@ -89,15 +91,15 @@ async def delete_user(id: str) -> UserDisplaySchema:
     :param id: ID of user to delete
     :return: Information of deleted user
     """
-    user = await user_collection.find_one({"_id": ObjectId(id)})
+    user = await user_collection.find_one({"_id": to_objectid(id)})
 
     if user is None:
         raise HTTPException(404, "User not found")
 
-    await user_collection.delete_one({"_id": ObjectId(id)})
+    await user_collection.delete_one({"_id": to_objectid(id)})
 
     # Delete all flights associated with user
-    await flight_collection.delete_many({"user": ObjectId(id)})
+    await flight_collection.delete_many({"user": to_objectid(id)})
 
     return UserDisplaySchema(**user_helper(user))
 
@@ -127,12 +129,12 @@ async def edit_profile(user_id: str, username: str = None, password: str = None,
             raise HTTPException(403, "Unauthorized attempt to change auth level")
 
     if username:
-        user_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"username": username}})
+        user_collection.update_one({"_id": to_objectid(user_id)}, {"$set": {"username": username}})
     if password:
         hashed_password = get_hashed_password(password)
-        user_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"password": hashed_password}})
+        user_collection.update_one({"_id": to_objectid(user_id)}, {"$set": {"password": hashed_password}})
     if auth_level:
-        user_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"level": auth_level}})
+        user_collection.update_one({"_id": to_objectid(user_id)}, {"$set": {"level": auth_level}})
 
     updated_user = await get_user_info_id(user_id)
     return updated_user

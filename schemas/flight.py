@@ -1,9 +1,7 @@
 import datetime
-import typing
 from typing import Optional, Dict, Union, List
 
-from bson import ObjectId
-from fastapi import UploadFile, File
+from utils import to_objectid
 from pydantic import BaseModel
 
 from schemas.utils import PositiveFloatNullable, PositiveFloat, PositiveInt, PyObjectId
@@ -162,6 +160,6 @@ def flight_add_helper(flight: dict, user: str) -> dict:
     :param user: User that created flight
     :return: Combined dict that can be inserted into db
     """
-    flight["user"] = ObjectId(user)
+    flight["user"] = to_objectid(user)
 
     return flight

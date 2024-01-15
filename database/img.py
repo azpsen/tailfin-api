@@ -5,7 +5,7 @@ from gridfs import NoFile
 from .db import db_client as db, files_collection
 
 import motor.motor_asyncio
-from bson import ObjectId
+from utils import to_objectid
 from fastapi import UploadFile, File, HTTPException
 
 fs = motor.motor_asyncio.AsyncIOMotorGridFSBucket(db)
@@ -35,7 +35,7 @@ async def retrieve_image_metadata(image_id: str = "") -> dict:
     :param image_id: ID of image to retrieve metadata of
     :return: Image metadata
     """
-    info = await files_collection.find_one({"_id": ObjectId(image_id)})
+    info = await files_collection.find_one({"_id": to_objectid(image_id)})
 
     if info is None:
         raise HTTPException(404, "Image not found")
@@ -56,7 +56,7 @@ async def retrieve_image(image_id: str = "") -> tuple[io.BytesIO, str]:
 
     stream = io.BytesIO()
     try:
-        await fs.download_to_stream(ObjectId(image_id), stream)
+        await fs.download_to_stream(to_objectid(image_id), stream)
     except NoFile:
         raise HTTPException(404, "Image not found")
 
@@ -73,7 +73,7 @@ async def delete_image(image_id: str = ""):
     :return: True if deleted
     """
     try:
-        await fs.delete(ObjectId(image_id))
+        await fs.delete(to_objectid(image_id))
     except NoFile:
         raise HTTPException(404, "Image not found")
     except Exception as e:

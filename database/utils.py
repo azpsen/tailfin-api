@@ -11,6 +11,7 @@ logger = logging.getLogger("api")
 
 # UTILS #
 
+
 async def create_admin_user():
     """
     Create default admin user if no admin users are present in the database

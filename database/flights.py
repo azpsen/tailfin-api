@@ -1,15 +1,15 @@
 import logging
 from datetime import datetime
-from typing import Dict, Union, Any, get_args, List, get_origin, _type_check, get_type_hints
+from typing import Dict, Union
 
 from bson import ObjectId
-from bson.errors import InvalidId
-from fastapi import HTTPException
-from pydantic import parse_obj_as, TypeAdapter, ValidationError, create_model
 
-from schemas.aircraft import AircraftCreateSchema, aircraft_add_helper, AircraftCategory, AircraftClass, \
-    aircraft_class_dict, aircraft_category_dict
-from .aircraft import retrieve_aircraft_by_tail, update_aircraft, update_aircraft_field, retrieve_aircraft
+from utils import to_objectid
+from fastapi import HTTPException
+from pydantic import ValidationError
+
+from schemas.aircraft import aircraft_class_dict, aircraft_category_dict
+from .aircraft import retrieve_aircraft_by_tail, update_aircraft_field
 from .db import flight_collection, aircraft_collection
 from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, flight_display_helper, \
     flight_add_helper, FlightPatchSchema
@@ -34,7 +34,7 @@ async def retrieve_flights(user: str = "", sort: str = "date", order: int = -1, 
     """
     filter_options = {}
     if user != "":
-        filter_options["user"] = ObjectId(user)
+        filter_options["user"] = to_objectid(user)
     if filter != "" and filter_val != "":
         if filter not in fs_keys:
             raise HTTPException(400, f"Invalid filter field: {filter}")
@@ -53,7 +53,7 @@ async def retrieve_totals(user: str, start_date: datetime = None, end_date: date
     :param user:
     :return:
     """
-    match: Dict[str, Union[Dict, ObjectId]] = {"user": ObjectId(user)}
+    match: Dict[str, Union[Dict, ObjectId]] = {"user": to_objectid(user)}
 
     if start_date is not None:
         match.setdefault("date", {}).setdefault("$gte", start_date)
@@ -61,7 +61,7 @@ async def retrieve_totals(user: str, start_date: datetime = None, end_date: date
         match.setdefault("date", {}).setdefault("$lte", end_date)
 
     by_class_pipeline = [
-        {"$match": {"user": ObjectId(user)}},
+        {"$match": {"user": to_objectid(user)}},
         {"$lookup": {
             "from": "flight",
             "let": {"aircraft": "$tail_no"},
@@ -104,7 +104,7 @@ async def retrieve_totals(user: str, start_date: datetime = None, end_date: date
     by_class_list = await class_cursor.to_list(None)
 
     totals_pipeline = [
-        {"$match": {"user": ObjectId(user)}},
+        {"$match": {"user": to_objectid(user)}},
         {"$group": {
             "_id": None,
             "time_total": {"$sum": "$time_total"},
@@ -154,7 +154,7 @@ async def retrieve_flight(id: str) -> FlightDisplaySchema:
     :param id: ID of flight to retrieve
     :return: Flight information
     """
-    flight = await flight_collection.find_one({"_id": ObjectId(id)})
+    flight = await flight_collection.find_one({"_id": to_objectid(id)})
 
     if flight is None:
         raise HTTPException(404, "Flight not found")
@@ -193,7 +193,7 @@ async def update_flight(body: FlightCreateSchema, id: str) -> str:
     :param id: ID of flight to update
     :return: ID of updated flight
     """
-    flight = await flight_collection.find_one({"_id": ObjectId(id)})
+    flight = await flight_collection.find_one({"_id": to_objectid(id)})
 
     if flight is None:
         raise HTTPException(404, "Flight not found")
@@ -208,7 +208,7 @@ async def update_flight(body: FlightCreateSchema, id: str) -> str:
         await update_aircraft_field("hobbs", body.hobbs_end, aircraft.id)
 
     # Update flight in database
-    updated_flight = await flight_collection.update_one({"_id": ObjectId(id)}, {"$set": body.model_dump()})
+    updated_flight = await flight_collection.update_one({"_id": to_objectid(id)}, {"$set": body.model_dump()})
 
     if updated_flight is None:
         raise HTTPException(500, "Failed to update flight")
@@ -228,7 +228,7 @@ async def update_flight_fields(id: str, update: dict) -> str:
         if field not in fs_keys:
             raise HTTPException(400, f"Invalid update field: {field}")
 
-    flight = await flight_collection.find_one({"_id": ObjectId(id)})
+    flight = await flight_collection.find_one({"_id": to_objectid(id)})
 
     if flight is None:
         raise HTTPException(404, "Flight not found")
@@ -246,7 +246,7 @@ async def update_flight_fields(id: str, update: dict) -> str:
         if aircraft is None:
             raise HTTPException(404, "Aircraft not found")
 
-    updated_flight = await flight_collection.update_one({"_id": ObjectId(id)}, {"$set": update_dict})
+    updated_flight = await flight_collection.update_one({"_id": to_objectid(id)}, {"$set": update_dict})
 
     if updated_flight is None:
         raise HTTPException(500, "Failed to update flight")
@@ -261,10 +261,10 @@ async def delete_flight(id: str) -> FlightDisplaySchema:
     :param id: ID of flight to delete
     :return: Deleted flight information
     """
-    flight = await flight_collection.find_one({"_id": ObjectId(id)})
+    flight = await flight_collection.find_one({"_id": to_objectid(id)})
 
     if flight is None:
         raise HTTPException(404, "Flight not found")
 
-    await flight_collection.delete_one({"_id": ObjectId(id)})
+    await flight_collection.delete_one({"_id": to_objectid(id)})
     return FlightDisplaySchema(**flight_display_helper(flight))
