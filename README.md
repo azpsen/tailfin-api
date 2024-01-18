@@ -1,5 +1,3 @@
-![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white)
-
 <p align="center">
     <a href="" rel="nooperner">
     <img width=200px height=200px src="logo.png" alt="Tailfin Logo"></a>
