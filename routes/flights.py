@@ -8,6 +8,7 @@ from app.deps import get_current_user, admin_required
 from database import flights as db
 from database.flights import update_flight_fields
 from database.img import upload_image
+from database.import_flights import import_from_csv_mfb
 
 from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, FlightByDateSchema, \
     FlightSchema
@@ -221,3 +222,17 @@ async def delete_flight(flight_id: str, user: UserDisplaySchema = Depends(get_cu
     deleted = await db.delete_flight(flight_id)
 
     return deleted
+
+
+@router.post('/import', summary="Import flights from given file")
+async def import_flights(flights: UploadFile = File(...), type: str = "mfb",
+                         user: UserDisplaySchema = Depends(get_current_user)):
+    """
+    Import flights from a given file (csv). Note that all aircraft included must be created first
+
+    :param flights: File of flights to import
+    :param type: Type of import (mfb: MyFlightBook)
+    :param user: Current user
+    :return:
+    """
+    await import_from_csv_mfb(flights, user.id)

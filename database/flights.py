@@ -12,12 +12,10 @@ from schemas.aircraft import aircraft_class_dict, aircraft_category_dict
 from .aircraft import retrieve_aircraft_by_tail, update_aircraft_field
 from .db import flight_collection, aircraft_collection
 from schemas.flight import FlightConciseSchema, FlightDisplaySchema, FlightCreateSchema, flight_display_helper, \
-    flight_add_helper, FlightPatchSchema
+    flight_add_helper, FlightPatchSchema, fs_keys
 from .img import delete_image
 
 logger = logging.getLogger("api")
-
-fs_keys = list(FlightPatchSchema.__annotations__.keys()) + list(FlightDisplaySchema.__annotations__.keys())
 
 
 async def retrieve_flights(user: str = "", sort: str = "date", order: int = -1, filter: str = "",

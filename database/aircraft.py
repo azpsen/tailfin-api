@@ -117,7 +117,7 @@ async def update_aircraft_field(field: str, value: Any, id: str) -> AircraftDisp
     if updated_aircraft is None:
         raise HTTPException(500, "Failed to update flight")
 
-    return AircraftDisplaySchema(**aircraft.model_dump())
+    return AircraftDisplaySchema(**aircraft_display_helper(aircraft))
 
 
 async def delete_aircraft(id: str) -> AircraftDisplaySchema:

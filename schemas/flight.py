@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional, Dict, Union, List
+from typing import Optional, Dict, Union, List, get_args
 
 from utils import to_objectid
 from pydantic import BaseModel
@@ -122,6 +122,10 @@ class FlightConciseSchema(BaseModel):
 
 
 FlightByDateSchema = Dict[int, Union[Dict[int, 'FlightByDateSchema'], FlightConciseSchema]]
+
+fs_keys = list(FlightPatchSchema.__annotations__.keys()) + list(FlightDisplaySchema.__annotations__.keys())
+fs_types = {label: get_args(type_)[0] if get_args(type_) else str(type_) for label, type_ in
+            FlightSchema.__annotations__.items() if len(get_args(type_)) > 0}
 
 
 # HELPERS #
