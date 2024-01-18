@@ -12,6 +12,7 @@
 <p align="center">A self-hosted digital flight logbook</p>
 
 <p align="center">
+    <a href="LICENSE"><img src="https://img.shields.io/github/license/azpsen/tailfin-web?style=for-the-badge" /></a>
     <a href="https://python.org/"><img src="https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54" alt="Python" /></a>
     <a href="https://www.mongodb.com/"><img src="https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB" /></a>
     <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi" alt="FastAPI" /></a>
