@@ -3,11 +3,9 @@
     <img width=200px height=200px src="logo.png" alt="Tailfin Logo"></a>
 </p>
 
-<h3 align="center">Tailfin</h3>
+<h1 align="center">Tailfin</h1>
 
----
-
-<p align="center">A self-hosted digital flight logbook</p>
+<h3 align="center">A self-hosted digital flight logbook</h3>
 
 <p align="center">
     <a href="LICENSE"><img src="https://img.shields.io/github/license/azpsen/tailfin-web?style=for-the-badge" /></a>
